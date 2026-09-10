@@ -57,10 +57,16 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "prototype:web": "npm --prefix prototypes/member-web/app start",
+    "prototype:web:test": "npm --prefix prototypes/member-web/app run test:in-process"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/prototypes/member-web/"
+    ]
   },
   "private": true
 }
