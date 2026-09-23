@@ -32,6 +32,22 @@ Expo SDK 57, React Native 0.86, React 19.2, Expo Router, NativeWind 4, TanStack 
 
 See `AGENTS.md` for conventions and `docs/` for product context.
 
+## Native migration preview
+
+The native flow now includes Invitation, email validation, an explicitly labelled sign-in demo, seven onboarding questions with validation, Back, answer editing and device-local saved progress, followed by the first native Home screen. No email is sent and no authentication is performed yet. Start it with `npm start`, or use `npm run web` to review the same React Native components in a browser.
+
+Onboarding now follows the confirmed **Concept 2** design: the customer-story video, rotating envelope, name confirmation and handwritten letter, followed by black-and-white question screens. Open `/onboarding?step=welcome` to replay the opening, or choose **Continue to onboarding** after the existing sign-in demonstration.
+
+Choose **Enter my empire** on the saved-answer review to open `/home`. Returning to `/` or `/onboarding` resumes unfinished questions or opens Home when all seven answers are valid. Home now ports the original dashboard: course/learning/action rings, membership and support cards, My day, next move, continue watching, included events, recommendations, weekly actions, and the fixed learning action and five-tab navigation. The initial member is the original demo fixture (33%, 26 minutes, 1/3 actions); the rings update from saved learning and weekly actions rather than fixed display values.
+
+All five navigation tabs now use native screens matched to the original web app. Library includes collections, access states, search/filtering and the lesson player; Events includes registration, cancellation, sample tickets and attendance; Coach includes saved chats, retry/stop, availability states and reviewed handoffs; Support includes topics, request threads, resolution/history and notification previews. The original pure JavaScript business models are reused behind TypeScript native components and AsyncStorage stores, without rendering the web app in a WebView.
+
+The six original silent preview videos support playback, seeking, speed, fullscreen, resume and completion. Learning and event changes update Home and the consultation plan. Earlier native preview conversations and reservations are carried forward. Profile → **View my direction** reopens the onboarding review, with **Back to Home** as its final action. The Home consultation plan remains separate from the onboarding answers. Coaching/support replies, event passes, calendars, wallets and notifications retain the original prototype's explicitly local demo behavior; no backend service is connected.
+
+Choice questions and industry shortcuts hold the white selection for 500ms, then save and advance automatically; text answers use Continue/Save changes. Every answer is written to AsyncStorage before advancing. Unsent drafts survive Back within the session but not an app restart. Storage is local to this installation, not tied to an account or synced with the separate web prototype. The invitation name stays in session memory only.
+
+The canonical palette and sizing live in `design-system/tokens.css`. Run `npm run tokens:sync` after changing those values; `npm run typecheck` checks that generated native tokens match. See [the migration notes](docs/native-migration.md) for scope, validation and the next increments. Real-device accessibility checks remain pending.
+
 ## Web design prototype
 
 The independently runnable member-experience prototype lives in
