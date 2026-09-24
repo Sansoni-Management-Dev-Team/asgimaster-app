@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test home-model.test.js library-model.test.js member-nav.test.js player-model.test.js player-presentation.test.js server.test.js coach-model.test.js support-model.test.js profile-model.test.js events-model.test.js onboarding-model.test.js",
+    "test:in-process": "node --test --test-isolation=none home-model.test.js library-model.test.js member-nav.test.js player-model.test.js player-presentation.test.js server.test.js coach-model.test.js support-model.test.js profile-model.test.js events-model.test.js onboarding-model.test.js"
+  }
+}

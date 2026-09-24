@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#101518" />
+    <meta
+      name="description"
+      content="Master App personalized learning, goals, membership and support prototype."
+    />
+    <title>Master App</title>
+    <link rel="stylesheet" href="../design-system/styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" type="module"></script>
+    <link rel="stylesheet" href="./home.css" />
+    <link rel="stylesheet" href="./library.css" />
+    <link rel="stylesheet" href="./player.css" />
+    <link rel="stylesheet" href="./coach.css" />
+    <link rel="stylesheet" href="./support.css" />
+    <link rel="stylesheet" href="./profile.css" />
+    <link rel="stylesheet" href="./events.css" />
+    <link rel="stylesheet" href="./onboarding.css" />
+  </head>
+  <body>
+    <a class="ds-skip-link" href="#screen-content">Skip to main content</a>
+
+    <div class="app-shell">
+      <header class="app-header" aria-label="Master App">
+        <a class="app-name" href="#invite" aria-label="Master App, return to invitation">
+          Master App
+        </a>
+        <span class="prototype-badge">Demo</span>
+      </header>
+
+      <aside class="support-notification" id="support-notification" aria-label="Demo support notification" hidden></aside>
+      <main class="screen-stack" id="screen-content">
+        <section class="screen screen--onboarding" data-screen="onboarding" aria-labelledby="onboarding-title" hidden>
+          <div class="screen__content">
+            <form class="onboarding-form" id="onboarding-form" novalidate>
+              <div class="screen__body onboarding-body">
+                <header class="onboarding-header">
+                  <button class="ds-icon-button onboarding-back" id="onboarding-back" type="button" aria-label="Back to invitation">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m14 6-6 6 6 6M8 12h13" /></svg>
+                  </button>
+                  <span class="ds-eyebrow">Master App</span>
+                  <span class="onboarding-header__detail" aria-hidden="true">Member experience</span>
+                </header>
+
+                <div class="onboarding-progress" id="onboarding-progress" aria-label="Stage 1 of 2: Your world">
+                  <div class="onboarding-progress__labels">
+                    <span class="ds-eyebrow" id="onboarding-stage-name">Your world</span>
+                    <span class="onboarding-stage">Stage <span class="ds-number" id="onboarding-stage-number">01</span> / <span class="ds-number">02</span></span>
+                  </div>
+                  <ol class="onboarding-progress__track ds-visually-hidden">
+                    <li id="onboarding-stage-one" aria-current="step">Stage 1: Your world, current stage</li>
+                    <li id="onboarding-stage-two">Stage 2: Your ambition, up next</li>
+                  </ol>
+                  <div class="onboarding-progress__bars" aria-hidden="true"><span></span><span></span></div>
+                </div>
+
+                <div class="onboarding-question">
+                  <p class="onboarding-question__number ds-eyebrow" id="onboarding-question-label">Question <span class="ds-number" id="onboarding-question-number">01</span> of <span class="ds-number" id="onboarding-question-total">04</span></p>
+                  <h1 id="onboarding-title" tabindex="-1">What industry<br />are you in?</h1>
+                  <p class="onboarding-intro" id="onboarding-intro">Big ambition starts in your world. Tell us where you’re making your mark.</p>
+
+                  <div class="onboarding-field" id="onboarding-fields"></div>
+                </div>
+              </div>
+
+              <div class="screen__actions onboarding-actions">
+                <p class="onboarding-personal-note">An experience shaped around you.</p>
+                <button class="ds-button ds-button--solid app-button onboarding-continue" type="submit">
+                  <span id="onboarding-continue-label">Continue</span>
+                </button>
+                <p class="onboarding-save-status" id="onboarding-save-status" role="status" aria-live="polite" aria-atomic="true"></p>
+              </div>
+            </form>
+          </div>
+          <p class="ds-visually-hidden" id="onboarding-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
+        </section>
+        <section class="screen screen--events" data-screen="events" aria-labelledby="events-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body events-body" id="events-body" tabindex="0" role="region" aria-label="Events content"><h1 id="events-title" tabindex="-1">Events</h1></div>
+            <div class="screen__actions events-footer">
+              <p id="events-storage-warning" role="status" hidden>Storage is unavailable. Changes only last while this page is open.</p>
+              <div id="events-actions" class="event-primary-actions" hidden></div>
+              <nav class="home-nav" data-member-nav="events" aria-label="Main navigation"></nav>
+            </div>
+            <p class="ds-visually-hidden" id="events-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          </div>
+        </section>
+        <section class="screen" data-screen="invite" aria-labelledby="invite-title">
+          <div class="screen__content">
+            <div class="screen__body">
+              <div class="screen-meta">
+                <span class="ds-eyebrow">Invitation</span>
+                <span class="screen-count" aria-label="Step 1 of 3">01 / 03</span>
+              </div>
+              <h1 class="screen__title" id="invite-title" tabindex="-1">You're invited</h1>
+              <p class="screen__intro">
+                Join Master App to access your private member experience.
+              </p>
+              <div class="access-note" aria-label="Private access with password-free sign in">
+                <span>Private access</span>
+                <span aria-hidden="true">•</span>
+                <span>Password-free</span>
+              </div>
+            </div>
+
+            <div class="screen__actions">
+              <button class="ds-button ds-button--solid app-button" type="button" data-go="signin">
+                Accept invitation
+              </button>
+              <button class="text-button" type="button" data-go="signin">
+                Already a member? Sign in
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="signin" aria-labelledby="signin-title" hidden>
+          <div class="screen__content">
+            <form class="signin-form" id="signin-form" novalidate>
+              <div class="screen__body">
+                <button class="back-button" type="button" data-go="invite">
+                  <span aria-hidden="true">←</span>
+                  Back
+                </button>
+                <div class="screen-meta">
+                  <span class="ds-eyebrow">Member access</span>
+                  <span class="screen-count" aria-label="Step 2 of 3">02 / 03</span>
+                </div>
+                <h1 class="screen__title" id="signin-title" tabindex="-1">Sign in</h1>
+                <p class="screen__intro" id="signin-description">Enter your invitation email.</p>
+
+                <div class="ds-field signin-field">
+                  <label class="ds-field__label" for="email">Email address</label>
+                  <input
+                    class="ds-input app-input"
+                    id="email"
+                    name="email"
+                    type="email"
+                    inputmode="email"
+                    autocomplete="email"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    aria-describedby="email-hint email-error"
+                    placeholder="you@example.com"
+                    required
+                  />
+                  <p class="ds-field__hint" id="email-hint">We'll email you a secure sign-in link.</p>
+                  <p class="ds-field__error" id="email-error" role="alert" hidden></p>
+                </div>
+              </div>
+
+              <div class="screen__actions">
+                <p class="privacy-note">
+                  Demo only. Nothing will be sent or saved.
+                </p>
+                <button class="ds-button ds-button--solid app-button" type="submit">
+                  Send magic link
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="sent" aria-labelledby="sent-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body">
+              <div class="screen-meta">
+                <span class="ds-eyebrow">Email ready</span>
+                <span class="screen-count" aria-label="Step 3 of 3">03 / 03</span>
+              </div>
+              <div class="success-mark" aria-hidden="true">
+                <svg viewBox="0 0 32 32" focusable="false">
+                  <path d="m8 16.5 5.2 5.2L24.5 10.5"></path>
+                </svg>
+              </div>
+              <h1 class="screen__title" id="sent-title" tabindex="-1">Link sent</h1>
+              <p class="screen__intro">
+                Check <strong class="sent-email" id="sent-email">your email address</strong> to continue.
+              </p>
+
+              <p class="prototype-note" role="note">
+                Demo mode — no email was sent.
+              </p>
+            </div>
+
+            <div class="screen__actions">
+              <button class="ds-button ds-button--solid app-button" type="button" id="demo-signin-complete">
+                Preview my plan
+              </button>
+              <button class="text-button" type="button" data-go="signin">Use a different email</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen screen--plan" data-screen="plan" aria-labelledby="plan-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body" tabindex="0" role="region" aria-label="Your personalized plan">
+              <div class="screen-meta">
+                <span class="ds-eyebrow">Made for you</span>
+                <span class="ds-status plan-status" id="plan-status">Ready to review</span>
+              </div>
+              <h1 class="screen__title plan-title" id="plan-title" tabindex="-1">Your plan</h1>
+              <p class="screen__intro plan-intro" id="plan-intro">Built around the goal you set with your consultant.</p>
+
+              <article class="ds-card goal-card" aria-labelledby="goal-summary">
+                <div class="ds-card__body">
+                  <p class="ds-eyebrow goal-source" id="goal-source">From your consultation</p>
+                  <h2 class="goal-card__title" id="goal-summary">Grow with focus</h2>
+                  <p class="goal-card__outcome" id="goal-outcome">Define three growth priorities and turn them into a weekly action plan.</p>
+                  <div class="goal-card__timeframe">
+                    <span class="ds-eyebrow">Timeframe</span>
+                    <span><span class="ds-number" id="goal-weeks">12</span> weeks</span>
+                  </div>
+                </div>
+              </article>
+
+              <div id="plan-events"></div>
+              <div class="plan-path">
+                <h2 class="ds-eyebrow plan-path__title">Your starting point</h2>
+                <ol class="plan-steps">
+                  <li>
+                    <span class="plan-steps__number" aria-hidden="true">01</span>
+                    <div><h3>Find your focus</h3><p>Turn your goal into clear priorities.</p></div>
+                  </li>
+                  <li>
+                    <span class="plan-steps__number" aria-hidden="true">02</span>
+                    <div><h3>Take action</h3><p>Make time for weekly action.</p></div>
+                  </li>
+                  <li>
+                    <span class="plan-steps__number" aria-hidden="true">03</span>
+                    <div><h3>Review &amp; refine</h3><p>Check progress with your consultant.</p></div>
+                  </li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="screen__actions plan-actions">
+              <p class="plan-feedback" id="plan-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+              <button class="ds-button ds-button--solid app-button" type="button" id="confirm-goal">Yes, that's it</button>
+              <button class="ds-button ds-button--solid app-button" type="button" id="plan-home" data-go="home" hidden>Back to home</button>
+              <button class="text-button" type="button" data-go="adjust-goal" id="adjust-goal">That's not quite right</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen screen--plan" data-screen="adjust-goal" aria-labelledby="adjust-title" hidden>
+          <div class="screen__content">
+            <form class="signin-form" id="goal-form" novalidate>
+              <div class="screen__body" tabindex="0" role="region" aria-label="Adjust your goal">
+                <div class="screen-meta"><span class="ds-eyebrow">Make it yours</span></div>
+                <h1 class="screen__title plan-title" id="adjust-title" tabindex="-1">Your goal</h1>
+                <p class="screen__intro plan-intro">Start with what you discussed. Adjust what matters to you.</p>
+
+                <div class="goal-fields">
+                  <div class="ds-field">
+                    <label class="ds-field__label" for="goal-name">Your goal (required)</label>
+                    <textarea class="ds-input" id="goal-name" name="goal" rows="2" maxlength="100" required aria-describedby="goal-name-hint goal-name-error"></textarea>
+                    <p class="ds-field__hint" id="goal-name-hint">Keep it clear and focused. Up to 100 characters.</p>
+                    <p class="ds-field__error" id="goal-name-error" role="alert" hidden></p>
+                  </div>
+                  <div class="ds-field">
+                    <label class="ds-field__label" for="goal-success">What success looks like (required)</label>
+                    <textarea class="ds-input" id="goal-success" name="success" rows="3" maxlength="280" required aria-describedby="goal-success-hint goal-success-error"></textarea>
+                    <p class="ds-field__hint" id="goal-success-hint">Describe the result you want to see.</p>
+                    <p class="ds-field__error" id="goal-success-error" role="alert" hidden></p>
+                  </div>
+                  <div class="ds-field">
+                    <label class="ds-field__label" for="goal-timeframe">Timeframe</label>
+                    <select class="ds-input" name="timeframe" id="goal-timeframe">
+                      <option value="4">4 weeks</option>
+                      <option value="8">8 weeks</option>
+                      <option value="12">12 weeks</option>
+                      <option value="24">24 weeks</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="screen__actions plan-actions">
+                <button class="ds-button ds-button--solid app-button" type="submit">Review changes</button>
+                <button class="text-button" type="button" data-go="plan" data-cancel-goal>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </section>
+        <section class="screen screen--home" data-screen="home" aria-labelledby="home-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body home-body" id="home-dashboard" tabindex="0" role="region" aria-label="Your personal home"><h1 id="home-title" tabindex="-1">Today</h1></div>
+            <div class="screen__actions home-actions">
+              <button class="ds-button ds-button--solid app-button" id="home-next" type="button">Continue learning</button>
+              <nav class="home-nav" aria-label="Main navigation" data-member-nav="home"></nav>
+            </div>
+          </div>
+        </section>
+        <section class="screen screen--library" data-screen="library" aria-labelledby="library-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body library-body" id="library-body" tabindex="0" role="region" aria-label="Browse your library">
+              <header class="library-header">
+                <div><p class="ds-eyebrow">Your learning</p><h1 id="library-title" tabindex="-1">Library</h1></div>
+                <button class="library-options" id="library-options" type="button" data-library-action="preview" aria-label="Library preview options">···</button>
+              </header>
+              <div class="library-access"><span class="library-membership" id="library-membership">Your access</span><span id="library-access-summary"></span></div>
+              <form class="library-search-form" id="library-search-form" role="search" aria-label="Search the library">
+                <label class="ds-field__label" for="library-search">Search library</label>
+                <div class="library-search-wrap">
+                  <input class="ds-input" id="library-search" type="search" placeholder="Search topics or lessons" maxlength="120" autocomplete="off" autocapitalize="none" enterkeyhint="search" aria-controls="library-results" />
+                  <button class="library-clear" id="library-clear-search" type="button" data-library-action="clear-search" aria-label="Clear search" hidden>×</button>
+                </div>
+              </form>
+              <div class="library-scope" role="group" aria-label="Content access">
+                <button type="button" data-library-scope="included" aria-pressed="true">Included</button>
+                <button type="button" data-library-scope="all" aria-pressed="false">Explore all</button>
+              </div>
+              <div class="library-filter-grid">
+                <div><label for="library-collection">Collection</label><select class="ds-input" id="library-collection" aria-controls="library-results"><option value="all">All collections</option></select></div>
+                <div><label for="library-progress">Progress</label><select class="ds-input" id="library-progress" aria-controls="library-results"><option value="all">All progress</option><option value="not-started">Not started</option><option value="in-progress">In progress</option><option value="completed">Completed</option></select></div>
+              </div>
+              <button class="library-reset" id="library-reset" type="button" data-library-action="reset" hidden>Clear filters</button>
+              <div class="library-results" id="library-results" aria-busy="false"></div>
+            </div>
+            <div class="screen__actions library-actions">
+              <nav class="home-nav" aria-label="Main navigation" data-member-nav="library"></nav>
+            </div>
+          </div>
+        </section>
+        <section class="screen screen--player" data-screen="player" aria-labelledby="player-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body player-body" id="content-player-body" tabindex="0" role="region" aria-label="Lesson content"><h1 id="player-title" tabindex="-1">Content player</h1></div>
+            <div class="screen__actions player-actions">
+              <div id="player-lesson-actions"></div>
+              <nav class="home-nav" aria-label="Main navigation" data-member-nav="library"></nav>
+            </div>
+          </div>
+        </section>
+        <section class="screen screen--coach" data-screen="coach" aria-labelledby="coach-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body coach-body" id="coach-body" tabindex="0" role="region" aria-label="AaronAI conversation">
+              <header class="coach-header">
+                <div><h1 id="coach-title" tabindex="-1">AaronAI</h1><p id="coach-availability">Demo coach · No API connected</p></div>
+                <div class="coach-header-actions">
+                  <button id="coach-history" type="button" data-coach-action="history" aria-label="Conversation history" aria-haspopup="dialog"><svg class="coach-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6M12 7v5l3 2"/></svg><span>History</span></button>
+                  <button id="coach-options" type="button" data-coach-action="options" aria-label="Coach options" aria-haspopup="dialog">···</button>
+                </div>
+              </header>
+              <div id="coach-view"></div>
+            </div>
+            <div class="screen__actions coach-actions">
+              <button type="button" class="text-button coach-new-reply" id="coach-new-reply" data-coach-action="latest" hidden>View new reply ↓</button>
+              <form class="coach-form" id="coach-form" novalidate>
+                <label class="ds-visually-hidden" for="coach-message">Message AaronAI</label>
+                <div class="coach-input-row"><textarea class="ds-input" id="coach-message" rows="1" maxlength="2000" required placeholder="What's on your mind?" enterkeyhint="enter" aria-describedby="coach-message-error coach-storage-note coach-draft-count"></textarea><button class="ds-button ds-button--solid" id="coach-send" type="submit" aria-label="Send message"><svg class="coach-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12 7-7 7 7M12 5v15"/></svg></button></div>
+                <p class="ds-field__error" id="coach-message-error" role="alert" hidden></p><p class="coach-draft-count" id="coach-draft-count"></p>
+              </form>
+              <div id="coach-blocked-actions" hidden></div>
+              <p class="coach-storage-note" id="coach-storage-note">Saved on this browser. Avoid sensitive information.</p>
+              <nav class="home-nav" aria-label="Main navigation" data-member-nav="coach"></nav>
+            </div>
+          </div>
+        </section>
+        <section class="screen screen--support" data-screen="support" aria-labelledby="support-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body support-body" id="support-body" tabindex="0" role="region" aria-label="Member support">
+              <header class="support-header">
+                <button class="ds-icon-button" id="support-back" type="button" data-support-action="current" aria-label="Back to conversations" hidden><svg class="support-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg></button>
+                <div><h1 id="support-title" tabindex="-1">Support</h1><p>Human support · Demo preview</p></div>
+                <button class="ds-icon-button" id="support-options" type="button" data-support-action="options" aria-label="Support options" aria-haspopup="dialog">···</button>
+              </header>
+              <div id="support-view"></div>
+            </div>
+            <div class="screen__actions support-actions">
+              <button class="text-button" id="support-latest" type="button" data-support-action="latest" hidden>View new reply ↓</button>
+              <form id="support-compose" class="support-compose" novalidate hidden>
+                <label class="ds-field__label" id="support-reply-label" for="support-reply">Reply to your team (required)</label>
+                <div class="support-compose-row"><textarea class="ds-input" id="support-reply" rows="1" maxlength="2000" required placeholder="Write a reply…" aria-describedby="support-reply-error support-storage"></textarea><button class="ds-button ds-button--solid" type="submit" aria-label="Send reply">Send</button></div>
+                <p class="ds-field__error" id="support-reply-error" role="alert" hidden></p>
+              </form>
+              <div id="support-primary-actions"></div>
+              <p class="support-storage" id="support-storage">Demo only. Saved on this browser, not sent to a person.</p>
+              <nav class="home-nav" aria-label="Main navigation" data-member-nav="support"></nav>
+            </div>
+          </div>
+        </section>
+        <section class="screen screen--profile" data-screen="profile" aria-labelledby="profile-title" hidden>
+          <div class="screen__content">
+            <div class="screen__body profile-body" id="profile-body" tabindex="0" role="region" aria-label="Profile and membership settings">
+              <header class="profile-header">
+                <button class="ds-icon-button" id="profile-back" type="button" data-profile-action="back" aria-label="Back to Home">←</button>
+                <h1 id="profile-title" tabindex="-1">Profile</h1>
+                <button class="ds-icon-button" id="profile-options" type="button" data-profile-action="options" aria-label="Profile preview options" aria-haspopup="dialog">···</button>
+              </header>
+              <div id="profile-view"></div>
+            </div>
+            <div class="screen__actions profile-bottom">
+              <div id="profile-actions"></div>
+              <p class="profile-storage" id="profile-storage">Demo account · Changes saved on this browser only.</p>
+              <nav class="home-nav" aria-label="Main navigation" data-member-nav="profile"></nav>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+    </div>
+
+    <dialog class="home-dialog" id="home-dialog" aria-labelledby="sheet-title">
+      <div class="sheet-header">
+        <h2 id="sheet-title" tabindex="-1"></h2>
+        <button class="sheet-close" id="sheet-close" type="button" aria-label="Close"><span aria-hidden="true">×</span></button>
+      </div>
+      <div class="sheet-body" id="sheet-body" tabindex="0" role="region" aria-labelledby="sheet-title"></div>
+      <div class="sheet-actions" id="sheet-actions"></div>
+      <div class="ds-visually-hidden" id="sheet-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+    </dialog>
+    <div class="ds-visually-hidden" id="home-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ds-visually-hidden" id="library-status" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ds-visually-hidden" id="player-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ds-visually-hidden" id="coach-status" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ds-visually-hidden" id="support-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ds-visually-hidden" id="support-push-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="ds-visually-hidden" id="profile-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>

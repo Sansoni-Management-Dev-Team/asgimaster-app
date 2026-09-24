@@ -2,12 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+/* Native styling is generated from design-system/tokens.css. */
+
+/* Match the reference's text-size-aware Home grid on web; native uses fontScale. */
+.member-metric {
+  min-width: min(100%, 5rem) !important;
+}
+.member-status-card {
+  min-width: min(100%, 8rem) !important;
+}
+.member-tab {
+  min-width: 3rem !important;
+}
+.member-filter {
+  min-width: min(100%, 8rem) !important;
+}
+.member-player-expanded {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999;
+  width: 100vw !important;
+  height: 100dvh !important;
+  aspect-ratio: auto !important;
+}
+@media (max-width: 320px) {
+  .collection-cover {
+    width: 64px !important;
+  }
+}
+@media (forced-colors: active) {
+  [data-testid='member-content'] path,
+  [data-testid='member-footer'] path,
+  [role='dialog'] path {
+    stroke: CanvasText;
+  }
+  [data-testid='member-content'] circle {
+    stroke: Highlight;
+  }
 }

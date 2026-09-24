@@ -1,0 +1,82 @@
+.profile-body { container: profile-content / inline-size; padding: 0 var(--space-2) var(--space-5); margin-inline: calc(-1 * var(--space-2)); overflow-wrap: anywhere; scrollbar-width: thin; }
+.profile-header { display: flex; align-items: center; gap: var(--space-3); padding-block: var(--space-2) var(--space-4); }
+.profile-header h1 { margin: 0; flex: 1; font-size: 1.5rem; line-height: 1.3; }
+.profile-header button { flex-shrink: 0; cursor: pointer; font-size: 1.25rem; }
+.profile-action { min-height: var(--target-min); max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.profile-identity { padding-block: var(--space-5) var(--space-6); }
+.profile-avatar { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; margin-bottom: var(--space-5); border: 1px solid var(--color-teal); border-radius: 50%; background: var(--color-background-end); color: var(--color-teal); font-size: 1.5rem; }
+.profile-identity .ds-eyebrow { font-size: .625rem; color: var(--color-teal); }
+.profile-identity h2 { font-size: 2rem; line-height: 1.15; margin-bottom: var(--space-3); }
+.profile-identity p:not(.ds-eyebrow) { font-size: var(--text-sm); margin-bottom: var(--space-2); }
+.profile-plan { position: relative; display: grid; gap: var(--space-2); width: 100%; min-height: var(--target-min); padding: var(--space-5); border-color: var(--color-control-border); color: var(--color-white); text-align: left; cursor: pointer; }
+.profile-plan > strong { font-size: 1.75rem; line-height: 1.2; padding-right: var(--space-6); }
+.profile-plan > span:not(.ds-eyebrow):not(.profile-plan-arrow) { font-size: var(--text-xs); line-height: 1.65; }
+.profile-plan .ds-eyebrow { font-size: .625rem; }
+.profile-plan-arrow { position: absolute; top: var(--space-5); right: var(--space-5); color: var(--color-teal); }
+.profile-section { margin-top: var(--space-6); }
+.profile-section > h3, .profile-notification-group h3 { font-size: var(--text-xs); line-height: 1.5; color: var(--color-text-muted); margin-bottom: var(--space-3); }
+.profile-rows { display: grid; }
+.profile-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); min-width: var(--target-min); min-height: 4.75rem; padding: var(--space-4) 0; border: 0; border-bottom: 1px solid var(--color-border); background: transparent; color: var(--color-white); text-align: left; cursor: pointer; }
+.profile-row > span:first-child { min-width: 0; }
+.profile-row strong { display: block; font-size: var(--text-sm); line-height: 1.5; }
+.profile-row span span { display: block; font-size: var(--text-xs); line-height: 1.6; color: var(--color-text-muted); margin-top: var(--space-1); }
+.profile-row > span:last-child { color: var(--color-teal); }
+.profile-intro { padding-block: var(--space-5); }
+.profile-intro .ds-eyebrow { font-size: .625rem; color: var(--color-teal); }
+.profile-intro h2 { font-size: 2rem; line-height: 1.15; margin-bottom: var(--space-4); }
+.profile-intro > p:last-child { font-size: var(--text-sm); line-height: 1.65; margin-bottom: 0; }
+.profile-facts { margin: 0; }
+.profile-facts > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--space-3); padding-block: var(--space-4); border-bottom: 1px solid var(--color-border); font-size: var(--text-sm); line-height: 1.6; }
+.profile-facts dt { color: var(--color-text-muted); }
+.profile-facts dd { margin: 0; color: var(--color-white); }
+.profile-fact-note { display: block; margin-top: var(--space-1); color: var(--color-text-muted); font-size: .625rem; }
+.profile-note { font-size: var(--text-xs); line-height: 1.7; margin-block: var(--space-5); }
+.profile-form { display: grid; gap: var(--space-5); padding-bottom: var(--space-3); }
+.profile-form .ds-input { min-width: 0; }
+.profile-form .ds-field__label { font-size: var(--text-sm); }
+.profile-notification-group { margin-block: var(--space-5); }
+.profile-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); min-height: var(--target-min); padding-block: var(--space-4); border-bottom: 1px solid var(--color-border); cursor: pointer; }
+.profile-toggle > span { min-width: 0; }
+.profile-toggle strong { display: block; font-size: var(--text-sm); line-height: 1.6; }
+.profile-toggle span span { display: block; margin-top: var(--space-2); color: var(--color-text-muted); font-size: var(--text-xs); line-height: 1.6; }
+.profile-toggle input { appearance: none; display: block; position: relative; flex: 0 0 auto; width: 3.5rem; min-width: var(--target-min); height: var(--target-min); margin: 0; border: 1px solid var(--color-control-border); border-radius: var(--radius-pill); background: var(--color-background-end); color: var(--color-white); cursor: pointer; }
+.profile-toggle input::before { position: absolute; top: 50%; left: .375rem; width: 1.25rem; height: 1.25rem; border-radius: 50%; transform: translateY(-50%); background: var(--color-white); content: ""; }
+.profile-toggle input:checked { background: var(--color-teal); border-color: var(--color-teal); }
+.profile-toggle input:checked::before { left: auto; right: .375rem; background: var(--color-background-end); }
+.profile-status { display: inline-flex; align-items: center; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); color: var(--color-white); font-size: var(--text-xs); line-height: 1.5; }
+.profile-program { padding: var(--space-5); margin-bottom: var(--space-5); }
+.profile-program h3 { font-size: var(--text-lg); line-height: 1.3; }
+.profile-program .ds-eyebrow { font-size: .625rem; }
+.profile-program p:not(.ds-eyebrow) { margin-bottom: var(--space-2); font-size: var(--text-sm); }
+.profile-entitlements { list-style: none; padding: 0; margin: 0; }
+.profile-entitlements li { display: flex; gap: var(--space-3); align-items: flex-start; padding-block: var(--space-4); border-bottom: 1px solid var(--color-border); }
+.profile-entitlements li > span:first-child { color: var(--color-teal); flex-shrink: 0; }
+.profile-entitlements strong { display: block; font-size: var(--text-sm); line-height: 1.5; }
+.profile-entitlements span span { display: block; color: var(--color-text-muted); font-size: var(--text-xs); line-height: 1.6; margin-top: var(--space-1); }
+.profile-payment-boundary { margin-top: var(--space-6); border-left: .125rem solid var(--color-teal); padding-left: var(--space-4); font-size: var(--text-sm); line-height: 1.6; }
+.profile-payment-boundary p { font-size: var(--text-xs); margin-block: var(--space-3) 0; }
+.profile-session { margin-block: var(--space-4); padding: var(--space-5); }
+.profile-session h3 { font-size: var(--text-sm); line-height: 1.5; margin-block: var(--space-3); }
+.profile-session p { font-size: var(--text-xs); line-height: 1.6; margin-bottom: 0; }
+.profile-external-host { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.profile-external-host span { display: block; color: var(--color-text-muted); font-size: var(--text-xs); margin-bottom: var(--space-2); }
+.profile-external-host strong { font-size: var(--text-md); }
+.screen--profile .profile-bottom { container: profile-footer / inline-size; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding-top: var(--space-3); padding-bottom: 0; background: var(--color-background-end); }
+.profile-bottom [hidden], .profile-body [hidden] { display: none; }
+#profile-actions { display: grid; gap: var(--space-2); }
+.profile-storage { font-size: .625rem; line-height: 1.5; margin: 0; text-align: center; }
+.profile-bottom .home-nav { margin-top: 0; }
+@container profile-content (max-width: 17rem) {
+  .profile-header { flex-wrap: wrap; }
+  .profile-header h1 { flex-basis: 55%; }
+  .profile-header button:last-child { margin-left: auto; }
+  .profile-intro h2, .profile-identity h2 { font-size: 1.5rem; }
+  .profile-facts > div { grid-template-columns: minmax(0, 1fr); }
+  .profile-toggle { align-items: flex-start; }
+}
+@media (forced-colors: active) {
+  .profile-avatar, .profile-status, .profile-toggle input { border-color: CanvasText; }
+  .profile-toggle input::before { background: CanvasText; }
+  .profile-toggle input:checked { background: Highlight; }
+  .profile-toggle input:checked::before { background: HighlightText; }
+}

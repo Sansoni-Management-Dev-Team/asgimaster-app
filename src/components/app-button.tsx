@@ -1,0 +1,77 @@
+import { useState } from 'react';
+import { Pressable, type PressableProps } from 'react-native';
+import { AppText } from './app-text';
+import { theme } from '@/theme';
+
+type Props = Omit<PressableProps, 'children'> & {
+  label: string;
+  variant?: 'primary' | 'secondary';
+};
+// Native equivalent of ds-button / ds-button--solid; no fixed text height.
+export function AppButton({
+  label,
+  variant = 'primary',
+  disabled,
+  style,
+  onFocus,
+  onBlur,
+  ...props
+}: Props) {
+  const [focused, setFocused] = useState(false);
+  const primary = variant === 'primary';
+  return (
+    <Pressable
+      {...props}
+      accessibilityRole="button"
+      accessibilityState={{ ...props.accessibilityState, disabled: Boolean(disabled) }}
+      aria-disabled={Boolean(disabled)}
+      aria-busy={props.accessibilityState?.busy}
+      disabled={disabled}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
+      style={(state) => [
+        {
+          minHeight: theme.target,
+          minWidth: theme.target,
+          paddingVertical: theme.space.md,
+          paddingHorizontal: theme.space.lg,
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRadius: theme.radius.pill,
+          borderWidth: 2,
+          borderColor: focused
+            ? theme.colors.white
+            : disabled
+              ? theme.colors.subtle
+              : theme.colors.teal,
+          backgroundColor:
+            disabled || !primary
+              ? 'transparent'
+              : state.pressed
+                ? theme.colors.white
+                : theme.colors.teal,
+          outlineWidth: focused ? 2 : 0,
+          outlineOffset: 3,
+          outlineColor: theme.colors.white,
+        },
+        typeof style === 'function' ? style(state) : style,
+      ]}
+    >
+      <AppText
+        style={{
+          color: disabled ? theme.colors.subtle : primary ? theme.colors.black : theme.colors.teal,
+          textAlign: 'center',
+          fontWeight: '700',
+        }}
+      >
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
