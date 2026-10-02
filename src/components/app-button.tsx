@@ -43,19 +43,19 @@ export function AppButton({
           paddingHorizontal: theme.space.lg,
           justifyContent: 'center',
           alignItems: 'center',
-          borderRadius: theme.radius.pill,
-          borderWidth: 2,
+          borderRadius: theme.radius.control,
+          borderWidth: 1,
           borderColor: focused
             ? theme.colors.white
             : disabled
               ? theme.colors.subtle
-              : theme.colors.teal,
+              : theme.colors.accent,
           backgroundColor:
             disabled || !primary
               ? 'transparent'
               : state.pressed
-                ? theme.colors.white
-                : theme.colors.teal,
+                ? theme.colors.accentPressed
+                : theme.colors.accent,
           outlineWidth: focused ? 2 : 0,
           outlineOffset: 3,
           outlineColor: theme.colors.white,
@@ -65,9 +65,16 @@ export function AppButton({
     >
       <AppText
         style={{
-          color: disabled ? theme.colors.subtle : primary ? theme.colors.black : theme.colors.teal,
+          color: disabled
+            ? theme.colors.subtle
+            : primary
+              ? theme.colors.black
+              : theme.colors.accent,
           textAlign: 'center',
           fontWeight: '700',
+          fontSize: 12,
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
         }}
       >
         {label}

@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 import { AppField } from '@/components/app-field';
 import { theme } from '@/theme';
 import { useMember } from './store';
-import { getDashboard } from './model';
+import { Profile, MembershipDetails } from './profile-membership';
 import { EventSummary } from '../events/components';
-import { Card, Copy, Heading, Hit, Solid, TextAction, type Destination, type Go } from './ui';
+import { Copy, Heading, Hit, Solid, TextAction, type Destination, type Go } from './ui';
 import { type Sheet } from './dashboard';
 
 export function MemberDestination({
@@ -20,10 +20,6 @@ export function MemberDestination({
   go: Go;
   open: (sheet: Sheet) => void;
 }) {
-  const state = useMember();
-  const { member, goal } = state.data;
-  const d = getDashboard(member, goal);
-  const router = useRouter();
   const heading = {
     library: 'Library',
     events: 'Events',
@@ -39,44 +35,8 @@ export function MemberDestination({
   return (
     <>
       <Heading title={heading} back={() => go('home')} />
-      {(view === 'profile' || view === 'membership') && (
-        <View style={{ gap: 16 }}>
-          <Card>
-            <Copy size={24} style={{ fontWeight: '700' }}>
-              {member.firstName}
-            </Copy>
-            <Copy muted>{d.membership.name} membership</Copy>
-            <Copy style={{ color: theme.colors.teal }}>
-              {d.membership.status === 'active'
-                ? 'Membership active'
-                : d.membership.status === 'payment_due'
-                  ? 'Payment needs attention'
-                  : 'Membership paused'}
-            </Copy>
-          </Card>
-          <Copy caps accessibilityRole="header" size={12}>
-            Your access
-          </Copy>
-          <Copy>{d.entitled.length} included lessons</Copy>
-          <Copy>{d.membership.ai ? 'AaronAI guidance included' : 'AaronAI not included'}</Copy>
-          <Copy>
-            {d.membership.coach ? 'Consultant support included' : 'Member support included'}
-          </Copy>
-          <Solid
-            label={d.membership.status === 'payment_due' ? 'Get payment help' : 'Contact support'}
-            onPress={() => go('support')}
-          />
-          <TextAction label="View my plan" onPress={() => go('plan')} />
-          <TextAction label="Notifications" onPress={() => go('support', 'settings')} />
-          <TextAction
-            label="View my direction"
-            onPress={() =>
-              router.push({ pathname: '/onboarding', params: { step: 'complete', from: 'home' } })
-            }
-          />
-          <TextAction label="Demo settings" onPress={() => open('demo')} />
-        </View>
-      )}
+      {view === 'profile' && <Profile go={go} open={open} />}
+      {view === 'membership' && <MembershipDetails go={go} />}
       {view === 'plan' && (
         <>
           <Plan />
@@ -91,6 +51,16 @@ function Plan() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(state.data.goal);
   const router = useRouter();
+  if (!state.data.goal.name)
+    return (
+      <View style={{ gap: 24, paddingVertical: 24 }}>
+        <Copy caps size={28}>
+          Your plan starts here.
+        </Copy>
+        <Copy muted>Set your direction to bring your goal and priorities into one place.</Copy>
+        <Solid label="Set up my direction" onPress={() => router.push('/onboarding')} />
+      </View>
+    );
   if (!editing)
     return (
       <View style={{ gap: 16 }}>
@@ -140,7 +110,9 @@ function Plan() {
             onPress={() => setDraft({ ...draft, weeks })}
             accessibilityState={{ selected: draft.weeks === weeks }}
           >
-            <Copy style={{ color: draft.weeks === weeks ? theme.colors.teal : theme.colors.muted }}>
+            <Copy
+              style={{ color: draft.weeks === weeks ? theme.colors.accent : theme.colors.muted }}
+            >
               {weeks} weeks
             </Copy>
           </Hit>

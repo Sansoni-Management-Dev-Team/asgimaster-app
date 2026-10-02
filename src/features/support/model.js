@@ -1,4 +1,5 @@
 // Browser-only prototype. No messages, agent events or push notifications leave this device.
+import { readOffboarding, intentLabels } from '../offboarding/metadata';
 export const SUPPORT_KEY = 'master-app.support.v1';
 export const MESSAGE_LIMIT = 2000;
 export const MAX_CONVERSATIONS = 30;
@@ -107,18 +108,20 @@ export function agentReply(state, conversationId, { resolve = false } = {}, now 
     return { error: 'Choose an open conversation with room for a reply.' };
   const text = resolve
     ? "Thanks for confirming. I'll mark this request as resolved. If you still need help, you can reopen this conversation.\n\nThis is a sample agent reply; no real agent has reviewed your request."
-    : {
-        access:
-          "Hi, I'm Alex from Member Care. Which lesson are you trying to open, and what do you see on screen? Please don't share your password.\n\nThis is a sample agent reply. No account or lesson access has been changed.",
-        account:
-          "Hi, I'm Alex from Member Care. Is your question about membership access or a payment notice? You can describe the issue without sharing card or bank details.\n\nThis is a sample agent reply. No payment or account action has been taken.",
-        technical:
-          "Hi, I'm Alex from Member Care. Which device are you using, and what happened just before the issue? A short description will help us understand the next step.\n\nThis is a sample agent reply; no diagnostics have been run.",
-        consultant:
-          "Hi, I'm Alex, your demo consultant contact. Which part of your agreed goal would you like to discuss?\n\nThis is a sample reply. Your actual consultant hasn't been contacted and your plan hasn't changed.",
-        general:
-          "Hi, I'm Alex from Member Care. Thanks for explaining. What would a helpful outcome look like for you?\n\nThis is a sample agent reply; no real agent has reviewed your request.",
-      }[conversation.topic];
+    : conversation.offboarding
+      ? `Thanks for sharing. This is a preview of a callback request to ${intentLabels[conversation.offboarding.intent].toLowerCase()}. The team would confirm your options and any changes with you.\n\nThis is a sample reply. No callback has been arranged, and your membership and access have not changed.`
+      : {
+          access:
+            "Hi, I'm Alex from Member Care. Which lesson are you trying to open, and what do you see on screen? Please don't share your password.\n\nThis is a sample agent reply. No account or lesson access has been changed.",
+          account:
+            "Hi, I'm Alex from Member Care. Is your question about membership access or a payment notice? You can describe the issue without sharing card or bank details.\n\nThis is a sample agent reply. No payment or account action has been taken.",
+          technical:
+            "Hi, I'm Alex from Member Care. Which device are you using, and what happened just before the issue? A short description will help us understand the next step.\n\nThis is a sample agent reply; no diagnostics have been run.",
+          consultant:
+            "Hi, I'm Alex, your demo consultant contact. Which part of your agreed goal would you like to discuss?\n\nThis is a sample reply. Your actual consultant hasn't been contacted and your plan hasn't changed.",
+          general:
+            "Hi, I'm Alex from Member Care. Thanks for explaining. What would a helpful outcome look like for you?\n\nThis is a sample agent reply; no real agent has reviewed your request.",
+        }[conversation.topic];
   const message = addMessage(conversation, 'agent', text, now);
   conversation.status = resolve ? 'resolved' : 'replied';
   conversation.unread = true;
@@ -228,6 +231,9 @@ export function loadSupport(target = storage(), now = new Date()) {
         updatedAt: date(item.updatedAt),
         messages,
         context: typeof item.context === 'string' ? item.context.slice(0, MAX_CONTEXT) : '',
+        ...(item.topic === 'account' && readOffboarding(item.offboarding)
+          ? { offboarding: readOffboarding(item.offboarding) }
+          : {}),
       });
     }
   } catch {

@@ -26,7 +26,7 @@ const useFilters = create<{ filters: Filters; set: (changes: Filters) => void; r
   }),
 );
 function Cover({ group, restricted }: { group: Collection; restricted: boolean }) {
-  const color = restricted ? theme.colors.muted : theme.colors.teal;
+  const color = restricted ? theme.colors.muted : theme.colors.accent;
   return (
     <View
       className="collection-cover"
@@ -100,7 +100,6 @@ export function LibraryScreen({ go }: { go: Go }) {
     <MemberFrame title="Library" active="library" go={go}>
       <PageHeader
         title="Library"
-        eyebrow="Your learning"
         options={() => {
           setPreview(phase);
           setPanel('preview');
@@ -119,7 +118,7 @@ export function LibraryScreen({ go }: { go: Go }) {
         <Copy
           size={11}
           style={{
-            color: theme.colors.teal,
+            color: theme.colors.accent,
             borderWidth: 1,
             borderColor: theme.colors.border,
             borderRadius: 99,
@@ -169,7 +168,7 @@ export function LibraryScreen({ go }: { go: Go }) {
           flexWrap: 'wrap',
           borderWidth: 1,
           borderColor: theme.colors.controlBorder,
-          borderRadius: 999,
+          borderRadius: theme.radius.md,
           padding: 4,
           gap: 4,
           marginTop: 16,
@@ -188,8 +187,8 @@ export function LibraryScreen({ go }: { go: Go }) {
               flex: 1,
               minWidth: 96,
               padding: 8,
-              borderRadius: 999,
-              backgroundColor: d.scope === value ? theme.colors.teal : 'transparent',
+              borderRadius: theme.radius.control,
+              backgroundColor: d.scope === value ? theme.colors.accent : 'transparent',
               alignItems: 'center',
             }}
           >
@@ -264,7 +263,7 @@ export function LibraryScreen({ go }: { go: Go }) {
         />
       ) : (
         <>
-          {filtered && <TextAction label="← Back to collections" onPress={reset} />}
+          {filtered && <TextAction label="Back to collections" onPress={reset} />}
           <View
             style={{
               flexDirection: 'row',
@@ -313,7 +312,7 @@ export function LibraryScreen({ go }: { go: Go }) {
                       <View style={{ flex: 1, paddingVertical: 16, paddingHorizontal: 12, gap: 8 }}>
                         <Copy
                           size={10}
-                          style={{ color: restricted ? theme.colors.muted : theme.colors.teal }}
+                          style={{ color: restricted ? theme.colors.muted : theme.colors.accent }}
                         >
                           {locked ? '♙ Not included' : pending ? '◷ Coming soon' : '✓ Included'}
                         </Copy>
@@ -338,7 +337,6 @@ export function LibraryScreen({ go }: { go: Go }) {
                                 ? 'Recording being prepared'
                                 : `${group.ready.length} lessons · ${group.ready.reduce((n, l) => n + l.minutes, 0)} min`}
                           </Copy>
-                          <Icon name="arrow" size={18} color={theme.colors.text} />
                         </View>
                         {!restricted && (
                           <>
@@ -347,7 +345,7 @@ export function LibraryScreen({ go }: { go: Go }) {
                                 style={{
                                   height: 3,
                                   width: `${(group.completed / group.ready.length) * 100}%`,
-                                  backgroundColor: theme.colors.teal,
+                                  backgroundColor: theme.colors.accent,
                                 }}
                               />
                             </View>
@@ -398,7 +396,6 @@ export function LibraryScreen({ go }: { go: Go }) {
                                   : 'Included · Ready to start'}
                         </Copy>
                       </View>
-                      <Copy>›</Copy>
                     </Hit>
                   );
                 })}
@@ -408,7 +405,7 @@ export function LibraryScreen({ go }: { go: Go }) {
               <Copy size={12} muted>
                 Looking for more?
               </Copy>
-              <Copy size={14}>Explore the full library ↗</Copy>
+              <Copy size={14}>Explore the full library</Copy>
             </Hit>
           )}
           <RelatedEvents lessonIds={d.items.map((i) => i.id)} go={go} />

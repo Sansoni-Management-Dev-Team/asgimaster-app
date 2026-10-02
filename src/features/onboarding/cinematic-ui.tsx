@@ -68,6 +68,7 @@ export function CinemaButton({
   label,
   onPress,
   solid = false,
+  prominent = false,
   disabled = false,
   accessibilityLabel,
   style,
@@ -76,6 +77,7 @@ export function CinemaButton({
   label: string;
   onPress: () => void;
   solid?: boolean;
+  prominent?: boolean;
   disabled?: boolean;
   accessibilityLabel?: string;
   style?: ViewStyle;
@@ -94,7 +96,7 @@ export function CinemaButton({
       onBlur={() => setFocused(false)}
       style={({ pressed }) => [
         {
-          minHeight: solid ? 56 : 48,
+          minHeight: solid || prominent ? 56 : 48,
           minWidth: 48,
           paddingVertical: 12,
           paddingHorizontal: 16,
@@ -115,11 +117,12 @@ export function CinemaButton({
       {children ?? (
         <CinemaText
           style={{
-            color: solid ? c.black : c.muted,
-            fontSize: solid ? 12 : 11,
+            color: solid ? c.black : prominent ? c.white : c.muted,
+            fontSize: prominent ? 14 : solid ? 12 : 11,
+            fontWeight: prominent ? '700' : '600',
             textAlign: 'center',
-            textTransform: solid ? 'uppercase' : 'none',
-            letterSpacing: solid ? 0.5 : 0,
+            textTransform: solid || prominent ? 'uppercase' : 'none',
+            letterSpacing: prominent ? 1.4 : solid ? 0.5 : 0,
           }}
         >
           {label}

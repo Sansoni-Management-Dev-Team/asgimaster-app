@@ -22,6 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/app-text';
 import { AppField } from '@/components/app-field';
+import { MemberHeader } from '@/components/member-header';
 import { theme } from '@/theme';
 import { useMotion } from '../onboarding/use-motion';
 import { Copy, Hit, Icon, Solid, TextAction } from '../home/ui';
@@ -63,7 +64,7 @@ export function PageHeader({
   optionsLabel,
   history,
   back,
-  stacked = false,
+  backLabel = 'Back',
 }: {
   title: string;
   eyebrow?: string;
@@ -72,78 +73,68 @@ export function PageHeader({
   optionsLabel?: string;
   history?: () => void;
   back?: () => void;
-  stacked?: boolean;
+  backLabel?: string;
 }) {
-  const heading = (
-    <AppText
-      variant="title"
-      style={{
-        fontSize: stacked ? 28 : eyebrow ? 32 : 24,
-        lineHeight: stacked ? 33.6 : eyebrow ? 38.4 : 28.8,
-        letterSpacing: stacked ? 2.8 : eyebrow ? 3.2 : 2.4,
-      }}
-    >
-      {title}
-    </AppText>
-  );
   return (
-    <View style={{ paddingTop: 12, marginBottom: 20, gap: 8 }}>
-      {back && !stacked && <TextAction label="← Back" onPress={back} />}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <View style={{ flex: 1, minWidth: 120 }}>
-          {back && stacked && <TextAction label="← Events" onPress={back} />}
-          {eyebrow && (
-            <Copy
-              caps
-              size={stacked ? 12 : 10}
-              style={{ color: theme.colors.teal, marginBottom: stacked ? 0 : 8 }}
-            >
-              {eyebrow}
-            </Copy>
-          )}
-          {!stacked && heading}
-          {subtitle && (
-            <Copy size={10} muted style={{ marginTop: 4 }}>
-              {subtitle}
-            </Copy>
-          )}
-        </View>
-        {history && (
-          <Hit
-            accessibilityLabel="Conversation history"
-            onPress={history}
-            style={{
-              minWidth: 52,
-              minHeight: 56,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: 28,
-            }}
-          >
-            <Icon name="history" size={20} color={theme.colors.text} />
-            <Copy size={10}>History</Copy>
-          </Hit>
-        )}
-        {options && (
-          <Hit
-            accessibilityLabel={optionsLabel ?? `${title} options`}
-            onPress={options}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              alignItems: 'center',
-            }}
-          >
-            <Copy size={24}>···</Copy>
-          </Hit>
-        )}
-      </View>
-      {stacked && <View style={{ marginTop: 8 }}>{heading}</View>}
-    </View>
+    <MemberHeader
+      title={title}
+      back={back && <TextAction label={backLabel} onPress={back} />}
+      context={
+        (eyebrow || subtitle) && (
+          <View style={{ gap: theme.space.xs }}>
+            {eyebrow && (
+              <Copy caps size={12} muted>
+                {eyebrow}
+              </Copy>
+            )}
+            {subtitle && (
+              <Copy size={12} muted>
+                {subtitle}
+              </Copy>
+            )}
+          </View>
+        )
+      }
+      actions={
+        (history || options) && (
+          <>
+            {history && (
+              <Hit
+                accessibilityLabel="Conversation history"
+                onPress={history}
+                style={{
+                  minWidth: theme.target,
+                  minHeight: theme.target,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  borderRadius: theme.target / 2,
+                }}
+              >
+                <Icon name="history" size={20} color={theme.colors.text} />
+                <Copy size={10}>History</Copy>
+              </Hit>
+            )}
+            {options && (
+              <Hit
+                accessibilityLabel={optionsLabel ?? `${title} options`}
+                onPress={options}
+                style={{
+                  minWidth: theme.target,
+                  minHeight: theme.target,
+                  borderRadius: theme.target / 2,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                  alignItems: 'center',
+                }}
+              >
+                <Copy size={24}>···</Copy>
+              </Hit>
+            )}
+          </>
+        )
+      }
+    />
   );
 }
 export function Sheet({
@@ -184,11 +175,11 @@ export function Sheet({
         <LinearGradient
           colors={[theme.colors.backgroundStart, theme.colors.backgroundEnd]}
           style={{
-            maxWidth: 480,
+            maxWidth: theme.pageMax,
             width: '100%',
             maxHeight: '92%',
             alignSelf: 'center',
-            borderRadius: 16,
+            borderRadius: theme.radius.lg,
             borderWidth: 1,
             borderColor: theme.colors.border,
           }}
@@ -268,7 +259,7 @@ export function Select({
       }}
       style={{ borderBottomWidth: 1, borderColor: theme.colors.border, paddingVertical: 12 }}
     >
-      <Copy style={{ color: o.value === value ? theme.colors.teal : theme.colors.text }}>
+      <Copy style={{ color: o.value === value ? theme.colors.accent : theme.colors.text }}>
         {o.value === value ? '✓ ' : ''}
         {o.label}
       </Copy>
@@ -342,12 +333,12 @@ export function Segments({
             borderBottomWidth: pills ? 1 : 3,
             borderColor:
               value === o.value
-                ? theme.colors.teal
+                ? theme.colors.accent
                 : pills
                   ? theme.colors.controlBorder
                   : 'transparent',
-            borderRadius: pills ? 999 : 0,
-            backgroundColor: pills && value === o.value ? theme.colors.teal : 'transparent',
+            borderRadius: pills ? theme.radius.control : 0,
+            backgroundColor: pills && value === o.value ? theme.colors.accent : 'transparent',
             alignItems: 'center',
           }}
         >
@@ -358,7 +349,7 @@ export function Segments({
                 value === o.value
                   ? pills
                     ? theme.colors.black
-                    : theme.colors.teal
+                    : theme.colors.accent
                   : theme.colors.muted,
             }}
           >
@@ -398,7 +389,7 @@ export function Check({
           borderRadius: 6,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: checked ? theme.colors.teal : 'transparent',
+          backgroundColor: checked ? theme.colors.accent : 'transparent',
         }}
       >
         <Copy size={24} style={{ color: theme.colors.black }}>
@@ -416,7 +407,7 @@ export function Emblem({ kind = 'spark' }: { kind?: 'spark' | 'chat' | 'events' 
         width: 56,
         height: 56,
         borderWidth: 1,
-        borderColor: theme.colors.teal,
+        borderColor: theme.colors.accent,
         borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
@@ -442,7 +433,7 @@ export function Hero({
   return (
     <View style={{ paddingTop: 24, paddingBottom: 32 }}>
       <Emblem kind={eyebrow === 'Member care' ? 'chat' : 'spark'} />
-      <Copy caps size={10} style={{ color: theme.colors.teal, marginBottom: 12 }}>
+      <Copy caps size={10} style={{ color: theme.colors.accent, marginBottom: 12 }}>
         {eyebrow}
       </Copy>
       <Copy
@@ -526,6 +517,7 @@ export function Composer({
   disabled = false,
   error,
   note,
+  placeholder = 'What’s on your mind?',
 }: {
   label: string;
   draft: string;
@@ -534,6 +526,7 @@ export function Composer({
   disabled?: boolean;
   error?: string;
   note: string;
+  placeholder?: string;
 }) {
   const input = useRef<TextInput>(null);
   const [height, setHeight] = useState(56);
@@ -552,11 +545,12 @@ export function Composer({
           value={draft}
           onChangeText={setDraft}
           editable={!disabled}
-          placeholder="What’s on your mind?"
+          placeholder={placeholder}
           placeholderTextColor={theme.colors.muted}
           multiline
           maxLength={2000}
           allowFontScaling
+          selectionColor={theme.colors.selection}
           onContentSizeChange={(e) =>
             setHeight(Math.max(56, Math.min(128, e.nativeEvent.contentSize.height)))
           }
@@ -568,7 +562,7 @@ export function Composer({
             padding: 12,
             borderWidth: 1,
             borderColor: theme.colors.controlBorder,
-            borderRadius: 12,
+            borderRadius: theme.radius.control,
             color: theme.colors.text,
             fontFamily: theme.fontWords,
             fontSize: 16,
@@ -581,15 +575,16 @@ export function Composer({
           accessibilityState={{ disabled }}
           onPress={send}
           style={{
-            width: 48,
+            minWidth: 56,
+            paddingHorizontal: 12,
             minHeight: 56,
-            borderRadius: 12,
-            backgroundColor: disabled ? theme.colors.raised : theme.colors.teal,
+            borderRadius: theme.radius.control,
+            backgroundColor: disabled ? theme.colors.raised : theme.colors.accent,
             alignItems: 'center',
           }}
         >
-          <Copy size={24} style={{ color: theme.colors.black }}>
-            ↑
+          <Copy size={12} style={{ color: disabled ? theme.colors.muted : theme.colors.onAccent }}>
+            Send
           </Copy>
         </Hit>
       </View>

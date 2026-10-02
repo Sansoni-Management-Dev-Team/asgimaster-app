@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode, type Ref } from 'react';
+import { useEffect, useState, type ReactNode, type Ref } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,8 +13,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Head from 'expo-router/head';
-import Svg, { Path, Circle, Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { AppText } from '@/components/app-text';
+import { MemberHeader } from '@/components/member-header';
+import { MembershipCardIcon } from './membership-card-icon';
 import { theme } from '@/theme';
 import { type MemberEvent, eventDate, eventTime } from './events';
 import { type Lesson } from './model';
@@ -30,21 +32,18 @@ const icons = {
   events: 'M3 5h18v16H3ZM7 3v4m10-4v4M3 11h18m-13 4h2m4 0h2',
   coach: 'M12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0M3 20v-2a6 6 0 0 1 12 0v2M16 4h5v7l-3-2h-2',
   support: 'M4 13v-2a8 8 0 0 1 16 0v6a4 4 0 0 1-4 4h-3M2 11h4v7H2Zm16 0h4v7h-4Z',
-  arrow: 'M6 18 18 6M6 6h12v12',
-  right: 'M5 12h14m-6-6 6 6-6 6',
   history: 'M3 11a9 9 0 1 1 2 7M3 3v8h8m1-5v6l4 2',
   check: 'm5 12 4 4L19 6',
   chat: 'M20 11a8 8 0 0 1-8 8H4l1.5-4A8 8 0 1 1 20 11ZM8 10h8M8 14h5',
   spark: 'm12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z',
   play: 'm9 5 11 7-11 7Z',
   lock: 'M5 10h14v11H5ZM8 10V7a4 4 0 0 1 8 0v3',
-  back: 'm14 5-7 7 7 7',
   close: 'm6 6 12 12M6 18 18 6',
 } as const;
 export function Icon({
   name,
   size = 20,
-  color = theme.colors.teal,
+  color = theme.colors.accent,
 }: {
   name: keyof typeof icons;
   size?: number;
@@ -60,7 +59,7 @@ export function Icon({
       strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
-      accessible={false}
+      accessible={Platform.OS === 'web' ? undefined : false}
       aria-hidden
       focusable={false}
     >
@@ -85,7 +84,11 @@ export function Copy({
           color: muted ? theme.colors.muted : theme.colors.text,
           fontWeight: '600',
           ...(caps
-            ? { textTransform: 'uppercase', fontWeight: '700', letterSpacing: size * 0.08 }
+            ? {
+                textTransform: 'uppercase',
+                fontWeight: '700',
+                letterSpacing: size * theme.type.tracking,
+              }
             : {}),
         },
         style,
@@ -115,6 +118,7 @@ export function Hit({
       aria-checked={props.accessibilityState?.checked}
       aria-expanded={props.accessibilityState?.expanded}
       aria-pressed={accessibilityRole === 'button' ? props.accessibilityState?.selected : undefined}
+      aria-selected={accessibilityRole === 'tab' ? props.accessibilityState?.selected : undefined}
       aria-disabled={props.disabled || props.accessibilityState?.disabled}
       aria-busy={props.accessibilityState?.busy}
       onFocus={() => setFocused(true)}
@@ -127,8 +131,9 @@ export function Hit({
           opacity: s.pressed ? 0.75 : 1,
           borderRadius: theme.radius.md,
           outlineWidth: focused ? 2 : 0,
-          outlineColor: theme.colors.teal,
-          outlineOffset: 2,
+          outlineColor: theme.colors.focus,
+          // Grid items sit against the scroll edge; keep their focus ring inside it.
+          outlineOffset: grid ? -2 : 2,
         },
         typeof style === 'function' ? style(s) : style,
       ]}
@@ -178,11 +183,11 @@ export function Solid({
       disabled={disabled}
       onPress={onPress}
       style={{
-        minHeight: 52,
+        minHeight: 56,
         paddingVertical: 16,
         paddingHorizontal: 24,
-        borderRadius: theme.radius.pill,
-        backgroundColor: disabled ? theme.colors.raised : theme.colors.teal,
+        borderRadius: theme.radius.control,
+        backgroundColor: disabled ? theme.colors.raised : theme.colors.accent,
       }}
     >
       <Copy
@@ -195,10 +200,18 @@ export function Solid({
     </Hit>
   );
 }
-export function TextAction({ label, onPress }: { label: string; onPress: () => void }) {
+export function TextAction({
+  label,
+  onPress,
+  disabled = false,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <Hit onPress={onPress}>
-      <Copy size={14} style={{ color: theme.colors.teal }}>
+    <Hit onPress={onPress} disabled={disabled} accessibilityState={{ disabled }}>
+      <Copy size={14} style={{ color: disabled ? theme.colors.muted : theme.colors.accent }}>
         {label}
       </Copy>
     </Hit>
@@ -231,7 +244,7 @@ export function Section({
         {action && (
           <Hit onPress={action} accessibilityLabel={`View all ${title.toLowerCase()}`}>
             <Copy muted size={12}>
-              View all ↗
+              View all
             </Copy>
           </Hit>
         )}
@@ -243,67 +256,42 @@ export function Section({
 export function Heading({
   title,
   back,
-  avatar,
+  profile,
 }: {
   title: string;
   back?: () => void;
-  avatar?: { label: string; initials: string; press: () => void };
+  profile?: { label: string; press: () => void };
 }) {
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingTop: 4,
-        paddingBottom: 16,
-      }}
-    >
-      <View style={{ flex: 1 }}>
-        {avatar ? (
+    <MemberHeader
+      title={title}
+      actions={
+        profile && (
           <Hit
-            onPress={avatar.press}
-            accessibilityLabel={avatar.label}
+            onPress={profile.press}
+            accessibilityLabel={profile.label}
             style={{
               width: 48,
               height: 48,
-              borderRadius: theme.radius.pill,
-              backgroundColor: theme.colors.raised,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
               alignItems: 'center',
             }}
           >
-            <Copy size={12} style={{ fontWeight: '700' }}>
-              {avatar.initials}
-            </Copy>
+            <MembershipCardIcon />
           </Hit>
-        ) : (
-          back && (
-            <Hit
-              onPress={back}
-              accessibilityLabel="Back to Home"
-              style={{ width: 48, alignItems: 'center' }}
-            >
-              <Icon name="back" color={theme.colors.text} />
-            </Hit>
-          )
-        )}
-      </View>
-      <AppText
-        variant="title"
-        style={{
-          fontSize: 14,
-          lineHeight: 19.6,
-          letterSpacing: 1.4,
-          textAlign: 'center',
-          flexShrink: 1,
-        }}
-      >
-        {title}
-      </AppText>
-      <View style={{ flex: 1 }} />
-    </View>
+        )
+      }
+      back={
+        back && (
+          <Hit
+            onPress={back}
+            accessibilityLabel="Back to Home"
+            style={{ minWidth: 48, alignSelf: 'flex-start', alignItems: 'center' }}
+          >
+            <Copy size={12}>Back</Copy>
+          </Hit>
+        )
+      }
+    />
   );
 }
 export function MemberFrame({
@@ -324,7 +312,6 @@ export function MemberFrame({
   contentRef?: Ref<ScrollView>;
 }) {
   const insets = useSafeAreaInsets();
-  const glowId = useId();
   const support = useSupport();
   const hydrateSupport = support.hydrate;
   useEffect(() => {
@@ -374,23 +361,24 @@ export function MemberFrame({
               alignItems: 'center',
               gap: 8,
               paddingVertical: 8,
-              borderRadius: 0,
+              borderRadius: theme.radius.control,
+              backgroundColor: active === tab ? theme.colors.raised : 'transparent',
             }}
           >
             <Icon
               name={tab}
               size={24}
-              color={active === tab ? theme.colors.teal : theme.colors.muted}
+              color={active === tab ? theme.colors.accent : theme.colors.muted}
             />
             {tab === 'support' && unread > 0 && (
-              <Copy size={10} style={{ color: theme.colors.teal }}>
+              <Copy size={10} style={{ color: theme.colors.accent }}>
                 {unread} unread
               </Copy>
             )}
             <Copy
               size={12}
               style={{
-                color: active === tab ? theme.colors.teal : theme.colors.muted,
+                color: active === tab ? theme.colors.accent : theme.colors.muted,
                 fontWeight: '700',
                 textDecorationLine: active === tab ? 'underline' : 'none',
               }}
@@ -410,24 +398,6 @@ export function MemberFrame({
       end={{ x: 1, y: 1 }}
       style={{ flex: 1 }}
     >
-      {active !== 'home' && (
-        <Svg
-          width="100%"
-          height="100%"
-          style={{ position: 'absolute' }}
-          pointerEvents="none"
-          accessible={false}
-          aria-hidden
-        >
-          <Defs>
-            <RadialGradient id={glowId} cx="82%" cy="4%" r="384" gradientUnits="userSpaceOnUse">
-              <Stop offset="0" stopColor={theme.colors.teal} stopOpacity={0.1} />
-              <Stop offset="1" stopColor={theme.colors.teal} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill={`url(#${glowId})`} />
-        </Svg>
-      )}
       <Head>
         <title>{title} — Master App</title>
       </Head>
@@ -448,7 +418,7 @@ export function MemberFrame({
             role="status"
             style={{
               borderWidth: 1,
-              borderColor: theme.colors.teal,
+              borderColor: theme.colors.accent,
               borderRadius: 12,
               padding: 12,
               gap: 4,
@@ -535,7 +505,7 @@ export function Metric({
           height="100%"
           viewBox="0 0 100 100"
           style={{ position: 'absolute' }}
-          accessible={false}
+          accessible={Platform.OS === 'web' ? undefined : false}
           aria-hidden
           focusable={false}
         >
@@ -574,7 +544,7 @@ export function Metric({
         </Copy>
       </View>
       <Copy caps size={12} style={{ marginTop: 12 }}>
-        {label} ›
+        {label}
       </Copy>
     </Hit>
   );
@@ -614,7 +584,7 @@ export function LessonRow({
           padding: 4,
         }}
       >
-        <Copy size={12} style={{ color: theme.colors.teal }}>
+        <Copy size={12} style={{ color: theme.colors.accent }}>
           {lesson.minutes} min
         </Copy>
       </View>
@@ -626,9 +596,6 @@ export function LessonRow({
           {detail}
         </Copy>
       </View>
-      <Copy muted size={20}>
-        ›
-      </Copy>
     </Hit>
   );
 }
@@ -690,7 +657,7 @@ export function EventCard({
               borderRadius: 6,
               paddingVertical: 4,
               paddingHorizontal: 8,
-              color: status === 'Registered' ? theme.colors.teal : theme.colors.text,
+              color: status === 'Registered' ? theme.colors.accent : theme.colors.text,
             }}
           >
             {status}
@@ -706,9 +673,6 @@ export function EventCard({
           {event.location}
         </Copy>
       </View>
-      <Copy size={20} muted>
-        ›
-      </Copy>
     </Hit>
   );
 }

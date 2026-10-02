@@ -56,20 +56,16 @@ describe('Native member entry', () => {
     await render(<Index />, { wrapper });
     expect(mockRedirect).toHaveBeenCalledWith({ href: '/home' });
   });
-  it('resumes an unfinished onboarding instead of starting the invitation again', async () => {
+  it('opens Home for a partially set-up member', async () => {
     useOnboarding.setState({
       record: { version: 1, answers: { ownershipIntent: 'find-business' } },
     });
     await render(<Index />, { wrapper });
-    expect(mockRedirect).toHaveBeenCalledWith({ href: '/onboarding' });
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/home' });
   });
-  it('offers both entry actions with accessible names and routes to sign-in', async () => {
-    const screen = await render(<Index />, { wrapper });
-    expect(screen.getByRole('header', { name: 'You’re invited' })).toBeTruthy();
-    await fireEvent.press(screen.getByRole('button', { name: 'Accept invitation' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Already a member? Sign in' }));
-    expect(mockRouter.push).toHaveBeenCalledTimes(2);
-    expect(mockRouter.push).toHaveBeenLastCalledWith('/sign-in');
+  it('opens empty Home as the first-run destination', async () => {
+    await render(<Index />, { wrapper });
+    expect(mockRedirect).toHaveBeenCalledWith({ href: '/home' });
   });
 
   it('rejects missing and incomplete emails, then allows a demo without claiming delivery', async () => {

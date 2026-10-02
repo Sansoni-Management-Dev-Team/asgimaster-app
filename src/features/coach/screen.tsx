@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Platform, View, ScrollView } from 'react-native';
 import { theme } from '@/theme';
 import { useMember } from '../home/store';
 import { lessons, canWatch, membershipFor } from '../home/model';
-import { Copy, Card, Hit, Icon, MemberFrame, Solid, TextAction, type Go } from '../home/ui';
+import { Copy, Card, Hit, MemberFrame, Solid, TextAction, type Go } from '../home/ui';
 import {
   PageHeader,
   Hero,
@@ -17,7 +17,7 @@ import {
   SavedState,
   dateLabel,
 } from '../member/ui';
-import { useCoach, useCoachUI, sendCoach, stopReply } from './store';
+import { useCoach, useCoachUI, sendCoach, stopReply, openAcquisition } from './store';
 import {
   currentConversation,
   coachAccess,
@@ -25,16 +25,26 @@ import {
   buildHandoff,
   type Handoff,
 } from './model';
+import { scenarios, stageLabel, type Entry, type PlanKey, type Stage } from './acquisition';
+import {
+  AcquisitionOpening,
+  AcquisitionPlan,
+  AaronAvatar,
+  Facts,
+  SummaryCard,
+  type PlanFocus,
+} from './acquisition-ui';
 import { useSupport } from '../support/store';
 import { startConversation } from '../support/model';
+
 export function CoachScreen({ go }: { go: Go }) {
   const state = useCoach(),
     ui = useCoachUI(),
     support = useSupport();
   useHydrate(state);
   useHydrate(support);
-  const { member, goal } = useMember((s) => s.data),
-    chat = currentConversation(state.data),
+  const { member } = useMember((s) => s.data);
+  const chat = currentConversation(state.data),
     access = coachAccess(member, ui.mode),
     key = chat?.id ?? 'new',
     draft = ui.drafts[key] ?? '';
@@ -48,11 +58,35 @@ export function CoachScreen({ go }: { go: Go }) {
     [share, setShare] = useState(false),
     [review, setReview] = useState<Handoff | null>(null),
     [handoffError, setHandoffError] = useState('');
+  const [view, setView] = useState<'chat' | 'plan'>('chat');
+  const [planFocus, setPlanFocus] = useState<PlanFocus | null>(null);
   const sent = useRef(false),
-    scroll = useRef<ScrollView>(null);
+    scroll = useRef<ScrollView>(null),
+    planTop = useRef(0);
   const pending = state.data.conversations.some((c) =>
     c.messages.some((m) => m.status === 'pending'),
   );
+  const plan = chat?.acquisition;
+  const announcement = error || state.warning || state.notice;
+  useEffect(() => {
+    // Android and web use the live regions below; iOS needs an explicit announcement.
+    if (Platform.OS === 'ios' && announcement)
+      AccessibilityInfo.announceForAccessibility(announcement);
+  }, [announcement]);
+  const scrollPlan = useCallback(
+    (y: number) => scroll.current?.scrollTo({ y: planTop.current + y, animated: false }),
+    [],
+  );
+  function switchView(next: 'chat' | 'plan', target?: PlanKey) {
+    setPlanFocus((previous) => (target ? { key: target, at: (previous?.at ?? 0) + 1 } : null));
+    setView(next);
+    if (next === 'plan')
+      state.change((s) => {
+        const p = currentConversation(s)?.acquisition;
+        if (p) p.unread = 0;
+      });
+    if (!target) requestAnimationFrame(() => scroll.current?.scrollTo({ y: 0, animated: false }));
+  }
   function send(text = draft) {
     const result = sendCoach(text);
     if (result) {
@@ -61,6 +95,7 @@ export function CoachScreen({ go }: { go: Go }) {
     }
     setError('');
     ui.setDraft(key, '');
+    requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: false }));
   }
   function choose(id: string | null) {
     stopReply();
@@ -69,6 +104,20 @@ export function CoachScreen({ go }: { go: Go }) {
     });
     setError('');
     setPanel(null);
+    setView('chat');
+    setPlanFocus(null);
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }
+  function start(entry: Entry, scenario?: Stage) {
+    const result = openAcquisition(entry, scenario);
+    if (result) {
+      setError(result);
+      return;
+    }
+    setError('');
+    setPanel(null);
+    setView('chat');
+    setPlanFocus(null);
     scroll.current?.scrollTo({ y: 0, animated: false });
   }
   function handoff() {
@@ -109,72 +158,70 @@ export function CoachScreen({ go }: { go: Go }) {
   }
   const footer =
     state.status === 'ready' ? (
-      <>
-        {chat?.messages.at(-1)?.role === 'assistant' && (
-          <TextAction
-            label="View new reply ↓"
-            onPress={() => scroll.current?.scrollToEnd({ animated: false })}
-          />
-        )}{' '}
-        {access === 'demo' ? (
-          <Composer
-            label="Message AaronAI"
-            draft={draft}
-            setDraft={(text) => {
-              ui.setDraft(key, text);
-              setError('');
-            }}
-            send={() => send()}
-            disabled={pending}
-            error={error}
-            note="Saved on this device. Avoid sensitive information."
-          />
-        ) : (
-          <View style={{ gap: 8, paddingTop: 12 }}>
-            {access === 'waitlist' ? (
-              <>
-                <Solid
-                  label={state.data.waitlisted ? 'Leave demo waitlist' : 'Join demo waitlist'}
-                  onPress={() =>
-                    state.change(
-                      (s) => {
-                        s.waitlisted = !s.waitlisted;
-                      },
-                      state.data.waitlisted
-                        ? 'Left the demo waitlist.'
-                        : 'Your interest is saved locally. No signup or notification was sent.',
-                    )
-                  }
-                />
-                <Copy size={12} muted>
-                  {state.data.waitlisted
-                    ? 'Your interest is saved on this device. No signup or notification was sent.'
-                    : 'Demo only. Joining saves interest locally; no signup is sent.'}
-                </Copy>
-              </>
-            ) : access === 'unavailable' ? (
+      access === 'demo' ? (
+        chat && view === 'chat' ? (
+          <>
+            {chat.messages.at(-1)?.role === 'assistant' && (
               <TextAction
-                label="Check availability"
+                label="View new reply"
+                onPress={() => scroll.current?.scrollToEnd({ animated: false })}
+              />
+            )}
+            <Composer
+              label="Message AaronAI"
+              draft={draft}
+              setDraft={(text) => {
+                ui.setDraft(key, text);
+                setError('');
+              }}
+              send={() => send()}
+              disabled={pending}
+              error={error}
+              placeholder={chat.messages.length ? 'Reply…' : 'Start here…'}
+              note="Saved on this device."
+            />
+          </>
+        ) : null
+      ) : (
+        <View style={{ gap: 8, paddingTop: 12 }}>
+          {access === 'waitlist' && (
+            <>
+              <Solid
+                label={state.data.waitlisted ? 'Leave demo waitlist' : 'Join demo waitlist'}
                 onPress={() =>
-                  state.change(
-                    () => {},
-                    'AaronAI is still unavailable in this preview. History and human help remain available.',
-                  )
+                  state.change((s) => {
+                    s.waitlisted = !s.waitlisted;
+                  }, 'Your preference is saved locally. No signup or notification was sent.')
                 }
               />
-            ) : null}
-            <Solid label="Talk to a person" onPress={handoff} />
-          </View>
-        )}
-      </>
+              <Copy size={12} muted>
+                No signup or notification is sent.
+              </Copy>
+            </>
+          )}
+          {access === 'unavailable' && (
+            <TextAction
+              label="Check availability"
+              onPress={() =>
+                state.change(
+                  () => {},
+                  'AaronAI is still unavailable in this preview. History and human help remain available.',
+                )
+              }
+            />
+          )}
+          <Solid label="Talk to a person" onPress={handoff} />
+        </View>
+      )
     ) : null;
+
   return (
     <MemberFrame title="AaronAI" active="coach" go={go} footerContent={footer} contentRef={scroll}>
       <PageHeader
         title="AaronAI"
         subtitle={
           access === 'demo'
-            ? 'Demo coach · No API connected'
+            ? 'Demo'
             : access === 'waitlist'
               ? 'Not launched yet'
               : access === 'locked'
@@ -197,175 +244,232 @@ export function CoachScreen({ go }: { go: Go }) {
         <>
           {access !== 'demo' && (
             <Card>
-              <Copy>
-                {access === 'waitlist'
-                  ? 'Not launched yet'
-                  : access === 'locked'
-                    ? 'Read-only access'
-                    : 'Coach unavailable'}
-              </Copy>
-              <Copy muted>
-                Your history is available, but new replies aren’t. Talk to a person for your next
-                step.
-              </Copy>
+              <Copy>Your history is available, but new replies aren’t.</Copy>
+              <TextAction label="Talk to a person" onPress={handoff} />
             </Card>
           )}
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: 8,
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginVertical: 16,
-            }}
-          >
-            <Copy size={12} muted>
-              Conversation · {dateLabel(chat.createdAt)}
+          <View style={{ paddingBottom: 16, gap: 8 }}>
+            <Copy accessibilityRole="header" size={18}>
+              {chat.title}
             </Copy>
-            <TextAction label="New chat +" onPress={() => choose(null)} />
-          </View>
-          <View role="log" accessibilityLabel="Conversation with AaronAI" style={{ gap: 16 }}>
-            {chat.messages.map((message) => {
-              const lesson = lessons.find((l) => l.id === message.lessonId);
-              return (
-                <Card
-                  key={message.id}
-                  style={{
-                    marginLeft: message.role === 'user' ? 24 : 0,
-                    marginRight: message.role === 'assistant' ? 12 : 0,
-                    backgroundColor:
-                      message.role === 'user' ? theme.colors.backgroundEnd : theme.colors.surface,
-                    borderTopWidth: message.role === 'assistant' ? 2 : 1,
-                    borderTopColor:
-                      message.role === 'assistant' ? theme.colors.teal : theme.colors.border,
-                  }}
-                >
-                  <Copy
-                    size={12}
-                    style={{
-                      color: message.role === 'assistant' ? theme.colors.teal : theme.colors.text,
-                    }}
-                  >
-                    {message.role === 'assistant' ? '✧ AaronAI · Demo' : 'You'}
-                  </Copy>
-                  <Copy size={14} style={{ lineHeight: 23.8 }}>
-                    {message.text}
-                  </Copy>
-                  {lesson && (
-                    <Solid
-                      label={
-                        canWatch(member, lesson)
-                          ? `Open lesson: ${lesson.title}`
-                          : 'Lesson not included in your current access'
-                      }
-                      disabled={!canWatch(member, lesson)}
-                      onPress={() => go('lesson', lesson.id)}
-                    />
-                  )}{' '}
-                  {message.handoff && <TextAction label="Review a handoff" onPress={handoff} />}{' '}
-                  {message.status === 'failed' && (
-                    <View
-                      style={{
-                        gap: 8,
-                        paddingTop: 12,
-                        borderTopWidth: 2,
-                        borderColor: theme.colors.learning,
-                      }}
-                    >
-                      <Copy size={12}>No reply yet</Copy>
-                      <Copy size={12} muted>
-                        {message.failure}
-                      </Copy>
-                      <Solid
-                        label="Retry message"
-                        disabled={pending || access !== 'demo'}
-                        onPress={() => {
-                          const error = sendCoach('', message.id);
-                          setError(error ?? '');
-                        }}
-                      />
-                      <TextAction
-                        label="Remove message"
-                        onPress={() =>
-                          state.change((s) => {
-                            const c = currentConversation(s);
-                            if (c)
-                              c.messages = c.messages.filter(
-                                (m) => m.id !== message.id || m.status !== 'failed',
-                              );
-                          }, 'Unanswered message removed.')
-                        }
-                      />
-                    </View>
-                  )}
-                </Card>
-              );
-            })}
-          </View>
-          {chat.messages.some((m) => m.status === 'pending') && (
             <View
               style={{
                 flexDirection: 'row',
                 flexWrap: 'wrap',
-                alignItems: 'center',
                 gap: 12,
-                paddingVertical: 8,
+                justifyContent: 'space-between',
+                alignItems: 'center',
               }}
             >
-              <Copy size={12} muted role="status">
-                ··· Preparing a demo reply
+              <Copy size={12} muted>
+                {plan ? stageLabel(plan.stage) : 'Earlier conversation'}
               </Copy>
-              <TextAction label="Stop reply" onPress={() => stopReply()} />
+              <TextAction label="New conversation" onPress={() => choose(null)} />
             </View>
+            {plan && (
+              <TextAction
+                label={
+                  plan.facts.length
+                    ? `${plan.facts.length} ${plan.facts.length === 1 ? 'fact' : 'facts'} in context`
+                    : 'What Aaron is carrying'
+                }
+                onPress={() => setPanel('What Aaron is carrying')}
+              />
+            )}
+          </View>
+          {plan && (
+            <View
+              accessibilityRole="tablist"
+              accessibilityLabel="Conversation views"
+              style={{ flexDirection: 'row', gap: 8 }}
+            >
+              {(['chat', 'plan'] as const).map((tab) => (
+                <Hit
+                  key={tab}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: view === tab }}
+                  accessibilityHint={
+                    tab === 'plan' && plan.unread > 0
+                      ? `${plan.unread} new plan ${plan.unread === 1 ? 'update' : 'updates'}`
+                      : undefined
+                  }
+                  accessibilityLabel={
+                    tab === 'chat'
+                      ? 'Chat'
+                      : plan.stage === 'SCOUTING'
+                        ? 'Search Plan'
+                        : 'Deal Plan'
+                  }
+                  onPress={() => switchView(tab)}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    gap: 4,
+                    alignItems: 'center',
+                    borderBottomWidth: 2,
+                    borderColor: view === tab ? theme.colors.accent : theme.colors.border,
+                    backgroundColor: view === tab ? theme.colors.surface : 'transparent',
+                  }}
+                >
+                  <Copy size={14}>
+                    {tab === 'chat'
+                      ? 'Chat'
+                      : plan.stage === 'SCOUTING'
+                        ? 'Search Plan'
+                        : 'Deal Plan'}
+                  </Copy>
+                  {tab === 'plan' && plan.unread > 0 && (
+                    <Copy size={12} muted>
+                      {plan.unread} new
+                    </Copy>
+                  )}
+                </Hit>
+              ))}
+            </View>
+          )}
+          {view === 'plan' && plan ? (
+            <AcquisitionPlan
+              key={chat.id}
+              plan={plan}
+              focus={planFocus}
+              scrollTo={scrollPlan}
+              onLayout={(event) => {
+                planTop.current = event.nativeEvent.layout.y;
+              }}
+            />
+          ) : (
+            <>
+              {!chat.messages.length && plan && (
+                <AcquisitionOpening entry={plan.entry} pick={start} />
+              )}
+              <View
+                role="log"
+                accessibilityLabel="Conversation with AaronAI"
+                style={{ gap: 28, paddingVertical: chat.messages.length ? 24 : 0 }}
+              >
+                {chat.messages.map((message) => {
+                  const lesson = lessons.find((l) => l.id === message.lessonId);
+                  return message.role === 'user' ? (
+                    <View
+                      key={message.id}
+                      style={{
+                        alignSelf: 'flex-end',
+                        maxWidth: '92%',
+                        gap: 8,
+                        padding: 16,
+                        backgroundColor: theme.colors.raised,
+                        borderRadius: theme.radius.md,
+                      }}
+                    >
+                      <Copy size={11} muted>
+                        You
+                      </Copy>
+                      <Copy selectable size={15}>
+                        {message.text}
+                      </Copy>
+                      {message.status === 'failed' && (
+                        <View style={{ gap: 8, marginTop: 8 }}>
+                          <Copy size={12}>No reply yet</Copy>
+                          <Copy size={12} muted>
+                            {message.failure}
+                          </Copy>
+                          <TextAction
+                            label="Retry message"
+                            disabled={pending || access !== 'demo'}
+                            onPress={() => setError(sendCoach('', message.id) ?? '')}
+                          />
+                          <TextAction
+                            label="Remove message"
+                            onPress={() =>
+                              state.change((s) => {
+                                const c = currentConversation(s);
+                                if (c)
+                                  c.messages = c.messages.filter(
+                                    (m) => m.id !== message.id || m.status !== 'failed',
+                                  );
+                              }, 'Unanswered message removed.')
+                            }
+                          />
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View key={message.id} style={{ gap: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <AaronAvatar />
+                        <Copy size={12}>Aaron</Copy>
+                      </View>
+                      {message.text.split('\n\n').map((paragraph, i) => (
+                        <Copy selectable key={i} size={15} style={{ lineHeight: 25 }}>
+                          {paragraph}
+                        </Copy>
+                      ))}
+                      {message.summary && <SummaryCard summary={message.summary} />}
+                      {plan && !!message.updates?.length && (
+                        <View style={{ gap: 4, paddingTop: 8 }}>
+                          <Copy size={11} muted>
+                            Updated on your plan
+                          </Copy>
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            {message.updates.map((update, i) => (
+                              <Hit
+                                key={i}
+                                accessibilityLabel={`View ${update.label} on plan`}
+                                onPress={() => switchView('plan', update.key)}
+                                style={{
+                                  borderWidth: 1,
+                                  borderColor: theme.colors.controlBorder,
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 8,
+                                  maxWidth: '100%',
+                                }}
+                              >
+                                <Copy size={12}>
+                                  {update.label}
+                                  {update.count > 1 ? ` · ${update.count}` : ''}
+                                </Copy>
+                              </Hit>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                      {lesson && (
+                        <Solid
+                          label={
+                            canWatch(member, lesson)
+                              ? `Open lesson: ${lesson.title}`
+                              : 'Lesson not included in your current access'
+                          }
+                          disabled={!canWatch(member, lesson)}
+                          onPress={() => go('lesson', lesson.id)}
+                        />
+                      )}
+                      {message.handoff && <TextAction label="Review a handoff" onPress={handoff} />}
+                    </View>
+                  );
+                })}
+              </View>
+              {chat.messages.some((m) => m.status === 'pending') && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 8,
+                  }}
+                >
+                  <Copy size={12} muted role="status">
+                    Reading what you wrote…
+                  </Copy>
+                  <TextAction label="Stop reply" onPress={() => stopReply()} />
+                </View>
+              )}
+            </>
           )}
         </>
       ) : access === 'demo' ? (
-        <>
-          <Hero eyebrow={`A little clarity, ${member.firstName}`} title={'Think it\nthrough.'}>
-            Turn your learning into a next step that feels manageable.
-          </Hero>
-          <View
-            style={{
-              borderLeftWidth: 2,
-              borderColor: theme.colors.teal,
-              paddingLeft: 12,
-              gap: 4,
-              marginBottom: 24,
-            }}
-          >
-            <Copy caps size={9} muted>
-              Your current goal
-            </Copy>
-            <Copy size={14}>{goal.name}</Copy>
-          </View>
-          <View style={{ gap: 8 }}>
-            {[
-              ['Find my next step', 'What should I do next?'],
-              ['Make a plan for this week', 'Help me plan my week'],
-              ['Put a lesson into practice', 'Help me apply a lesson'],
-            ].map(([label, prompt]) => (
-              <Hit
-                key={label}
-                onPress={() => send(prompt)}
-                style={{
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: theme.colors.controlBorder,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <Copy size={14} style={{ flex: 1 }}>
-                  {label}
-                </Copy>
-                <Icon name="right" />
-              </Hit>
-            ))}
-          </View>
-        </>
+        <AcquisitionOpening pick={start} />
       ) : (
         <Hero
           eyebrow={access === 'waitlist' ? 'A new way to move forward' : 'You’re not on your own'}
@@ -378,15 +482,24 @@ export function CoachScreen({ go }: { go: Go }) {
           }
         >
           {access === 'waitlist'
-            ? 'AaronAI isn’t ready to launch. You can join the demo waitlist. Your consultant and member support can help you keep moving.'
+            ? 'AaronAI isn’t ready to launch. Your consultant and member support can help you keep moving.'
             : access === 'locked'
               ? 'AaronAI isn’t included in your current access. You can still read saved conversations and contact member support.'
               : 'AaronAI can’t reply right now. Your history is still available. A person can help in the meantime.'}
         </Hero>
       )}
+      {!!error && (!chat || view === 'plan') && <Copy role="alert">{error}</Copy>}
       <SavedState state={state} />
       <Sheet title={panel} close={() => setPanel(null)}>
-        {panel === 'History' ? (
+        {panel === 'What Aaron is carrying' ? (
+          <>
+            <Facts facts={chat?.acquisition?.facts ?? []} />
+            <Copy size={12} muted>
+              These are the notes held for this conversation. Example scenarios contain fictional
+              facts.
+            </Copy>
+          </>
+        ) : panel === 'History' ? (
           <>
             <Copy size={12} muted>
               Saved on this device, not across devices. Delete a conversation from its options.
@@ -411,6 +524,7 @@ export function CoachScreen({ go }: { go: Go }) {
                       {dateLabel(c.updatedAt)} ·{' '}
                       {c.messages.filter((m) => m.role === 'user').length} messages
                       {c.messages.some((m) => m.status === 'failed') ? ' · Needs retry' : ''}
+                      {c.acquisition ? ` · ${stageLabel(c.acquisition.stage)}` : ' · Earlier chat'}
                       {c.id === chat?.id ? ' · Current' : ''}
                     </Copy>
                   </Hit>
@@ -442,16 +556,19 @@ export function CoachScreen({ go }: { go: Go }) {
             <Copy caps size={12} muted>
               A thinking partner, not your consultant
             </Copy>
-            <Copy>Reflect on learning, break down a goal and explore a manageable next step.</Copy>
+            <Copy>
+              Explore what to buy, work through a business acquisition, and keep your questions and
+              findings together.
+            </Copy>
             <Copy>
               It cannot change your plan, make payments, update membership or act on your behalf. It
               does not replace your consultant or qualified medical, legal or financial advice. It
               is not an emergency service.
             </Copy>
             <Copy>
-              Check important decisions with a person who understands your situation. This demo only
-              knows the sample goal, lesson descriptions and learning progress. Replies are
-              scripted; no API or private consultation notes are connected.
+              Replies are scripted. New conversations retain your notes without analysing them.
+              Select a labelled example in Demo settings to explore richer plans. No AI service or
+              private consultation notes are connected.
             </Copy>
             <Copy>
               Messages stay on this device. Avoid sensitive information. Handoffs and waitlist
@@ -560,9 +677,20 @@ export function CoachScreen({ go }: { go: Go }) {
             {demo && (
               <>
                 <Copy size={12} muted>
-                  Preview launch readiness and reply errors. Prompts are unlimited; no real service
-                  is affected.
+                  Each scenario creates a separate conversation with fictional details. Your
+                  existing conversations are preserved.
                 </Copy>
+                <Copy caps size={12}>
+                  Example scenarios
+                </Copy>
+                {scenarios.map(([stage, label]) => (
+                  <TextAction
+                    key={stage}
+                    label={`Preview ${label}`}
+                    disabled={access !== 'demo'}
+                    onPress={() => start(stage === 'SCOUTING' ? 'searching' : 'has_target', stage)}
+                  />
+                ))}
                 <Select
                   label="Coach availability"
                   value={mode}

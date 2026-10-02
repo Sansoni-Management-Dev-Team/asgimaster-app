@@ -6,8 +6,13 @@ export type LocalState<T> = {
   status: 'idle' | 'loading' | 'ready' | 'failed';
   warning: string;
   notice: string;
+  saving: boolean;
   hydrate: () => Promise<void>;
   change: <R>(update: (data: T) => R, notice?: string) => R | undefined;
+  commit: <R>(
+    update: (data: T) => R,
+    notice?: string,
+  ) => Promise<{ saved: true; result: R } | { saved: false; error: string }>;
   retrySave: () => Promise<void>;
 };
 // The reference models stay pure JavaScript. This adapter owns native async persistence.
@@ -21,7 +26,7 @@ export function localStore<T>(
   let writes: Promise<void> = Promise.resolve();
   let revision = 0;
   return create<LocalState<T>>((set, get) => {
-    function persist(data: T) {
+    function persist(data: T, optimistic = true) {
       const value = JSON.stringify(data),
         version = ++revision;
       const job = writes.catch(() => {}).then(() => disk.setItem(key, value));
@@ -29,13 +34,16 @@ export function localStore<T>(
       return job.then(
         () => {
           if (version === revision) set({ warning: '' });
+          return true;
         },
         () => {
           if (version === revision)
             set({
-              warning:
-                'Storage is unavailable. Changes are kept for this visit only. Retry saving before closing the app.',
+              warning: optimistic
+                ? 'Storage is unavailable. Changes are kept for this visit only. Retry saving before closing the app.'
+                : 'Your request could not be saved. Please try again.',
             });
+          return false;
         },
       );
     }
@@ -44,6 +52,7 @@ export function localStore<T>(
       status: 'idle',
       warning: '',
       notice: '',
+      saving: false,
       async hydrate() {
         if (get().status === 'loading' || get().status === 'ready') return;
         set({ status: 'loading' });
@@ -61,7 +70,7 @@ export function localStore<T>(
         }
       },
       change(update, notice = '') {
-        if (get().status !== 'ready') return;
+        if (get().status !== 'ready' || get().saving) return;
         const data = JSON.parse(JSON.stringify(get().data)) as T;
         const result = update(data);
         if (
@@ -75,8 +84,37 @@ export function localStore<T>(
         void persist(data);
         return result;
       },
+      async commit(update, notice = '') {
+        if (get().status !== 'ready' || get().saving)
+          return { saved: false, error: 'Wait for saved requests to finish loading or saving.' };
+        set({ saving: true, warning: '', notice: '' });
+        try {
+          const data = JSON.parse(JSON.stringify(get().data)) as T;
+          const result = update(data);
+          if (
+            result === false ||
+            (result && typeof result === 'object' && 'error' in result && result.error)
+          )
+            return {
+              saved: false,
+              error:
+                result && typeof result === 'object' && 'error' in result
+                  ? String(result.error)
+                  : 'This change is unavailable.',
+            };
+          if (!(await persist(data, false)))
+            return {
+              saved: false,
+              error: 'Your request could not be saved. Your details are still here. Try again.',
+            };
+          set({ data, notice });
+          return { saved: true, result };
+        } finally {
+          set({ saving: false });
+        }
+      },
       async retrySave() {
-        if (get().status === 'ready') await persist(get().data);
+        if (get().status === 'ready' && !get().saving) await persist(get().data);
       },
     };
   });

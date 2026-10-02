@@ -8,9 +8,17 @@ import {
   failMessage,
   resolveMessage,
   demoReply,
+  coachAccess,
   type Request,
 } from './model';
 import { useMember } from '../home/store';
+import {
+  acquisitionReply,
+  startAcquisition,
+  startScenario,
+  type Entry,
+  type Stage,
+} from './acquisition';
 export const useCoach = localStore(
   'master-app.native.coach.v1',
   createCoachState,
@@ -66,6 +74,15 @@ export const useCoachUI = create<{
 }));
 let timer: ReturnType<typeof setTimeout> | undefined;
 let pending: Request | undefined;
+export function openAcquisition(entry: Entry, scenario?: Stage): string | undefined {
+  if (coachAccess(useMember.getState().data.member, useCoachUI.getState().mode) !== 'demo')
+    return 'New conversations are not available right now.';
+  stopReply();
+  const chat = useCoach
+    .getState()
+    .change((s) => (scenario ? startScenario(s, scenario) : startAcquisition(s, entry)));
+  return chat ? undefined : 'Your conversations are still loading.';
+}
 export function stopReply(detail = 'You stopped this reply. Retry whenever you’re ready.') {
   if (timer) clearTimeout(timer);
   timer = undefined;
@@ -93,14 +110,15 @@ export function sendCoach(text: string, retryId?: string): string | undefined {
     useCoach.getState().change(
       (s) => {
         if (shouldFail) return failMessage(s, result, 'No reply arrived. Retry when you’re ready.');
-        const message = s.conversations
-          .find((c) => c.id === result.chatId)
-          ?.messages.find((m) => m.id === result.messageId);
+        const chat = s.conversations.find((c) => c.id === result.chatId);
+        const message = chat?.messages.find((m) => m.id === result.messageId);
         if (message)
           resolveMessage(
             s,
             result,
-            demoReply(message.text, latest.member, latest.goal),
+            chat?.acquisition
+              ? acquisitionReply(message.text, chat.acquisition)
+              : demoReply(message.text, latest.member, latest.goal),
             latest.member,
             useCoachUI.getState().mode,
           );

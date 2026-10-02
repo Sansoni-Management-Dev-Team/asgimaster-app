@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 /* Native styling is generated from design-system/tokens.css. */
+:root {
+  color-scheme: dark;
+}
 
 /* Match the reference's text-size-aware Home grid on web; native uses fontScale. */
 .member-metric {

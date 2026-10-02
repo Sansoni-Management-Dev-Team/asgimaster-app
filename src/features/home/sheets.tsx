@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,11 +51,11 @@ export function MemberSheets({
           colors={[theme.colors.backgroundStart, theme.colors.backgroundEnd]}
           style={{
             width: '100%',
-            maxWidth: 480,
+            maxWidth: theme.pageMax,
             maxHeight: '92%',
             alignSelf: 'center',
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
+            borderTopLeftRadius: theme.radius.lg,
+            borderTopRightRadius: theme.radius.lg,
             borderWidth: 1,
             borderColor: theme.colors.border,
           }}
@@ -130,7 +131,7 @@ export function MemberSheets({
                         style={{
                           height: 8,
                           width: `${d.coursePercent}%`,
-                          backgroundColor: theme.colors.teal,
+                          backgroundColor: theme.colors.accent,
                         }}
                       />
                     </View>
@@ -177,7 +178,7 @@ export function MemberSheets({
                         borderColor: theme.colors.border,
                       }}
                     >
-                      <Copy style={{ color: theme.colors.teal }}>{item.done ? '✓' : '○'}</Copy>
+                      <Copy style={{ color: theme.colors.accent }}>{item.done ? '✓' : '○'}</Copy>
                       <View style={{ flex: 1 }}>
                         <Copy>{item.title}</Copy>
                         <Copy size={12} muted>
@@ -294,6 +295,7 @@ function WeeklyNote({ kind, done }: { kind: 'focus' | 'reflection'; done: () => 
   );
 }
 function DemoSettings({ close }: { close: () => void }) {
+  const router = useRouter();
   const state = useMember();
   const [membership, setMembership] = useState<Membership>(state.data.member.membership);
   const [progress, setProgress] = useState('current');
@@ -310,7 +312,7 @@ function DemoSettings({ close }: { close: () => void }) {
           accessibilityState={{ selected: membership === key }}
           onPress={() => setMembership(key)}
         >
-          <Copy style={{ color: membership === key ? theme.colors.teal : theme.colors.text }}>
+          <Copy style={{ color: membership === key ? theme.colors.accent : theme.colors.text }}>
             {membership === key ? '● ' : '○ '}
             {key === 'payment'
               ? 'Growth · payment due'
@@ -332,7 +334,7 @@ function DemoSettings({ close }: { close: () => void }) {
           onPress={() => setProgress(value)}
           accessibilityState={{ selected: progress === value }}
         >
-          <Copy style={{ color: progress === value ? theme.colors.teal : theme.colors.text }}>
+          <Copy style={{ color: progress === value ? theme.colors.accent : theme.colors.text }}>
             {progress === value ? '● ' : '○ '}
             {label}
           </Copy>
@@ -345,6 +347,13 @@ function DemoSettings({ close }: { close: () => void }) {
           void state.preset(membership, progress).then((ok) => {
             if (ok) close();
           });
+        }}
+      />
+      <TextAction
+        label="Preview empty Home"
+        onPress={() => {
+          close();
+          router.push({ pathname: '/home', params: { preview: 'empty' } });
         }}
       />
     </>

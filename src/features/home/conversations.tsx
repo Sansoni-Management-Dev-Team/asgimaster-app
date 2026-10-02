@@ -135,7 +135,7 @@ export function Conversations({ kind, go }: { kind: 'coach' | 'support'; go: Go 
       )}
       {messages.map((m, index) => (
         <Card key={index}>
-          <Copy size={12} style={{ color: theme.colors.teal }}>
+          <Copy size={12} style={{ color: theme.colors.accent }}>
             {m.role === 'user' ? 'You' : kind === 'coach' ? 'AaronAI (demo)' : 'Member Care (demo)'}
           </Copy>
           <Copy>{m.text}</Copy>

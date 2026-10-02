@@ -38,7 +38,7 @@ export function AppField({
         aria-describedby={error ? `${nativeID}-error` : hint ? `${nativeID}-hint` : undefined}
         allowFontScaling
         placeholderTextColor={theme.colors.subtle}
-        selectionColor={theme.colors.teal}
+        selectionColor={theme.colors.selection}
         onFocus={(event) => {
           setFocused(true);
           onFocus?.(event);
@@ -51,9 +51,9 @@ export function AppField({
           {
             minHeight: theme.target,
             padding: theme.space.md,
-            borderWidth: 2,
-            borderRadius: theme.radius.md,
-            borderColor: focused ? theme.colors.teal : theme.colors.controlBorder,
+            borderWidth: 1,
+            borderRadius: theme.radius.control,
+            borderColor: focused ? theme.colors.focus : theme.colors.controlBorder,
             backgroundColor: theme.colors.surface,
             color: theme.colors.text,
             fontFamily: theme.fontWords,
@@ -63,12 +63,12 @@ export function AppField({
           style,
         ]}
       />
-      {hint && (
+      {!!hint && (
         <AppText nativeID={`${nativeID}-hint`} variant="muted">
           {hint}
         </AppText>
       )}
-      {error && (
+      {!!error && (
         <AppText
           nativeID={`${nativeID}-error`}
           accessibilityRole="alert"
