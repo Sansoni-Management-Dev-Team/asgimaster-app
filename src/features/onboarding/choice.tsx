@@ -58,7 +58,6 @@ export function Choice({
     <Animated.View
       style={{
         transform: [{ scale }],
-        ...(industry ? { width: '48%' as const, flexGrow: 1 } : {}),
       }}
     >
       <Pressable
@@ -108,10 +107,10 @@ export function Choice({
           <CinemaText
             style={{
               color: selected ? c.black : c.muted,
-              fontSize: 11.52,
-              lineHeight: 18.4,
+              fontSize: 12,
+              lineHeight: 20,
               textAlign: 'center',
-              marginTop: 4,
+              marginTop: c.space.sm,
             }}
           >
             {description}

@@ -302,9 +302,7 @@ function Player({ lesson, go, retry }: { lesson: Item; go: Go; retry: () => void
             style={{ flex: 1, opacity: item ? 1 : 0.5 }}
           >
             <Copy size={12} style={{ textAlign: 'center' }}>
-              {label === 'Previous lesson' ? '← ' : ''}
               {label}
-              {label === 'Next lesson' ? ' →' : ''}
             </Copy>
           </Hit>
         ))}

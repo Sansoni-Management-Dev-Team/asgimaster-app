@@ -1,4 +1,5 @@
 import type { Member, Goal } from '../home/model';
+import type { Acquisition, PlanUpdate, Summary } from './acquisition';
 export type Message = {
   id: string;
   role: 'user' | 'assistant';
@@ -8,6 +9,8 @@ export type Message = {
   createdAt: string;
   lessonId?: string | null;
   handoff?: boolean;
+  updates?: PlanUpdate[];
+  summary?: Summary;
 };
 export type Conversation = {
   id: string;
@@ -15,6 +18,7 @@ export type Conversation = {
   createdAt: string;
   updatedAt: string;
   messages: Message[];
+  acquisition?: Acquisition;
 };
 export type CoachState = {
   version: number;
@@ -23,7 +27,14 @@ export type CoachState = {
   waitlisted: boolean;
 };
 export type Request = { chatId: string; messageId: string };
-export type Reply = { text: string; lessonId?: string; handoff?: boolean };
+export type Reply = {
+  text: string;
+  lessonId?: string;
+  handoff?: boolean;
+  acquisition?: Acquisition;
+  updates?: PlanUpdate[];
+  summary?: Summary;
+};
 export type Handoff = { team: string; note: string; transcript: string };
 export const MESSAGE_LIMIT: number;
 export const COACH_KEY: string;

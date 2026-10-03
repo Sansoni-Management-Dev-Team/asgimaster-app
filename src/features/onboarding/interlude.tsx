@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, View } from 'react-native';
-import { CinemaButton, CinemaScreen, CinemaText } from './cinematic-ui';
+import { Animated } from 'react-native';
+import { CinemaScreen, CinemaText } from './cinematic-ui';
 import { useMotion } from './use-motion';
 import { useIsFocused } from 'expo-router';
 
@@ -52,9 +52,6 @@ export function Interlude({
             : 'Every empire starts\nwith a decision.\nLet’s make yours.'}
         </CinemaText>
       </Animated.View>
-      <View style={{ position: 'absolute', bottom: 0, alignSelf: 'center' }}>
-        <CinemaButton label="Skip introduction" onPress={() => complete.current()} />
-      </View>
     </CinemaScreen>
   );
 }

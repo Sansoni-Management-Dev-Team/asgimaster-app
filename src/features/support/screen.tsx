@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { CallbackSummary, OffboardingEntry } from '../offboarding/components';
 import { theme } from '@/theme';
 import { useMember } from '../home/store';
 import { membershipFor } from '../home/model';
@@ -140,13 +141,13 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
         <View style={{ gap: 4 }}>
           {item.unread && (
             <TextAction
-              label="View new reply ↓"
+              label="View new reply"
               onPress={() => {
                 state.change((s) => markRead(s, item.id), 'New reply marked read.');
                 scroll.current?.scrollToEnd({ animated: false });
               }}
             />
-          )}{' '}
+          )}
           {item.status === 'resolved' ? (
             <>
               <Solid label="Reopen conversation" onPress={changeStatus} />
@@ -206,7 +207,7 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
         <>
           {state.data.conversations.length ? (
             <View style={{ paddingVertical: 24, gap: 12 }}>
-              <Copy caps size={10} style={{ color: theme.colors.teal }}>
+              <Copy caps size={10} style={{ color: theme.colors.accent }}>
                 Member care
               </Copy>
               <Copy caps size={32} accessibilityRole="header">
@@ -243,20 +244,20 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
                       caps
                       size={10}
                       style={{
-                        color: c.status === 'waiting' ? theme.colors.text : theme.colors.teal,
+                        color: c.status === 'waiting' ? theme.colors.text : theme.colors.accent,
                       }}
                     >
                       {c.status === 'resolved' ? '✓ ' : ''}
                       {statusLabels[c.status]}
                     </Copy>
                     {c.unread && (
-                      <Copy size={10} style={{ color: theme.colors.teal }}>
+                      <Copy size={10} style={{ color: theme.colors.accent }}>
                         Unread
                       </Copy>
                     )}
                   </View>
                   <Copy size={16} style={{ fontWeight: '700' }}>
-                    {topics[c.topic]}
+                    {c.offboarding ? 'Programme callback' : topics[c.topic]}
                   </Copy>
                   <Copy size={12} muted>
                     {c.messages.at(-1)?.role === 'agent'
@@ -267,7 +268,7 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
                     {c.messages.at(-1)?.text.slice(0, 96)}
                   </Copy>
                   <Copy size={12} muted>
-                    {dateLabel(c.updatedAt)} · {c.messages.length} messages ↗
+                    {dateLabel(c.updatedAt)} · {c.messages.length} messages
                   </Copy>
                 </Card>
               </Hit>
@@ -301,7 +302,7 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
       ) : isNew ? (
         <>
           <View style={{ paddingVertical: 24, gap: 16 }}>
-            <Copy caps size={10} style={{ color: theme.colors.teal }}>
+            <Copy caps size={10} style={{ color: theme.colors.accent }}>
               Let’s work it out
             </Copy>
             <Copy caps size={40} accessibilityRole="header" style={{ lineHeight: 43.2 }}>
@@ -318,6 +319,7 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
                 .filter(([k]) => k !== 'consultant' || consultant)
                 .map(([value, label]) => ({ value, label }))}
             />
+            {ui.newTopic === 'account' && <OffboardingEntry />}
             <Multiline
               label="Your message (required)"
               value={draft}
@@ -345,7 +347,7 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
             <Copy
               caps
               size={10}
-              style={{ color: item.status === 'waiting' ? theme.colors.text : theme.colors.teal }}
+              style={{ color: item.status === 'waiting' ? theme.colors.text : theme.colors.accent }}
             >
               {statusLabels[item.status]}
             </Copy>
@@ -374,6 +376,8 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
                   : 'Waiting for a person · Demo only'}
             </Copy>
           </View>
+          {item.offboarding && <CallbackSummary conversation={item} />}
+          {item.topic === 'account' && <OffboardingEntry />}
           <Copy size={10} muted style={{ textAlign: 'center', marginVertical: 24 }}>
             Started {dateLabel(item.createdAt)}
           </Copy>
@@ -405,7 +409,7 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
                     backgroundColor:
                       m.role === 'user' ? theme.colors.backgroundEnd : theme.colors.surface,
                     borderTopWidth: m.role === 'agent' ? 2 : 1,
-                    borderTopColor: m.role === 'agent' ? theme.colors.teal : theme.colors.border,
+                    borderTopColor: m.role === 'agent' ? theme.colors.accent : theme.colors.border,
                   }}
                 >
                   <View
@@ -418,7 +422,9 @@ export function SupportScreen({ id, go }: { id?: string; go: Go }) {
                   >
                     <Copy
                       size={12}
-                      style={{ color: m.role === 'agent' ? theme.colors.teal : theme.colors.text }}
+                      style={{
+                        color: m.role === 'agent' ? theme.colors.accent : theme.colors.text,
+                      }}
                     >
                       {m.role === 'user' ? 'You' : 'Alex · Demo agent'}
                     </Copy>

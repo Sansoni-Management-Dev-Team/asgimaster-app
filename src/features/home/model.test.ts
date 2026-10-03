@@ -85,7 +85,7 @@ describe('Home persistence', () => {
     const restored = createMemberStore(storage);
     await restored.getState().hydrate();
     expect(restored.getState().data.member.focusNote).toBe('Meet a founder');
-    expect(getDashboard(restored.getState().data.member, consultationGoal).actionsDone).toBe(2);
+    expect(getDashboard(restored.getState().data.member, consultationGoal).actionsDone).toBe(1);
   });
   it('persists lesson completion and plan changes and guards locked lessons', async () => {
     const storage = disk();

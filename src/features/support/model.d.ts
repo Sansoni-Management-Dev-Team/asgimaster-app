@@ -1,3 +1,4 @@
+import type { OffboardingMetadata } from '../offboarding/metadata';
 export type Message = {
   id: string;
   role: 'user' | 'agent' | 'system';
@@ -14,6 +15,7 @@ export type Conversation = {
   updatedAt: string;
   messages: Message[];
   context: string;
+  offboarding?: OffboardingMetadata;
 };
 export type SupportState = { version: number; conversations: Conversation[] };
 export type Result =

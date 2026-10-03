@@ -10,10 +10,14 @@ export function AppScreen({
   children,
   actions,
   title,
+  showBranding = true,
+  contentAlignment = 'top',
 }: {
   children: ReactNode;
   actions: ReactNode;
   title: string;
+  showBranding?: boolean;
+  contentAlignment?: 'top' | 'bottom';
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -45,16 +49,26 @@ export function AppScreen({
           <View
             style={{ flexGrow: 1, width: '100%', maxWidth: theme.pageMax, alignSelf: 'center' }}
           >
+            {showBranding && (
+              <View
+                className="flex-row flex-wrap items-center justify-between gap-4"
+                style={{ paddingBottom: theme.space.xxl }}
+              >
+                <AppText variant="eyebrow" style={{ color: theme.colors.text }}>
+                  Master App
+                </AppText>
+                <AppText variant="eyebrow">Demo</AppText>
+              </View>
+            )}
             <View
-              className="flex-row flex-wrap items-center justify-between gap-4"
-              style={{ paddingBottom: theme.space.xxl }}
+              style={{
+                flexGrow: 1,
+                gap: theme.space.lg,
+                justifyContent: contentAlignment === 'bottom' ? 'flex-end' : 'flex-start',
+              }}
             >
-              <AppText variant="eyebrow" style={{ color: theme.colors.text }}>
-                Master App
-              </AppText>
-              <AppText variant="eyebrow">Demo</AppText>
+              {children}
             </View>
-            <View style={{ flexGrow: 1, gap: theme.space.lg }}>{children}</View>
             <View style={{ gap: theme.space.md, paddingTop: theme.space.xxl }}>{actions}</View>
           </View>
         </ScrollView>

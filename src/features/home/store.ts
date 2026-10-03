@@ -12,20 +12,33 @@ import {
 } from './model';
 import { canAttend, eventCatalogue, eventStatus, type Registrations } from './events';
 import { FOCUS_KEY } from './focus-store';
+import type { OnboardingRecord } from '../onboarding/model';
+import { directionSignature, goalFromOnboarding, initialsFor } from './personalisation';
+import {
+  createMembershipCard,
+  isMembershipCard,
+  readMembershipCard,
+  type MembershipCard,
+} from './membership-card';
 
 export const MEMBER_KEY = 'master-app.native.member.v1';
 type Data = {
   version: 1;
   member: Member;
+  membershipCard: MembershipCard;
   goal: Goal;
   eventAnchor: string;
   registrations: Registrations;
+  onboardingSignature?: string;
+  goalSource?: 'onboarding' | 'custom';
 };
 type Storage = Pick<typeof AsyncStorage, 'getItem' | 'setItem'>;
 const freshData = (): Data => ({
   version: 1,
-  member: createMember(),
-  goal: { ...consultationGoal },
+  member: createMember(true),
+  membershipCard: createMembershipCard(),
+  goal: { name: '', success: '', weeks: '52' },
+  goalSource: 'onboarding',
   eventAnchor: new Date().toISOString().slice(0, 10),
   registrations: {},
 });
@@ -36,13 +49,15 @@ function restore(raw: unknown): Data {
   if (!raw || typeof raw !== 'object') return clean;
   const data = raw as Partial<Data>;
   if (data.version !== 1 || !data.member) return clean;
+  const card = readMembershipCard(data.membershipCard);
+  if (card) clean.membershipCard = card;
   const m = data.member;
   clean.member = createMember(
     true,
     Object.hasOwn(memberships, m.membership) ? m.membership : 'growth',
   );
-  clean.member.firstName = note(m.firstName, 60) || 'Shan';
-  clean.member.initials = note(m.initials, 4) || 'SY';
+  clean.member.firstName = note(m.firstName, 80);
+  clean.member.initials = note(m.initials, 4) || initialsFor(clean.member.firstName);
   const ids = lessons.map((l) => l.id);
   clean.member.completed = [
     ...new Set((Array.isArray(m.completed) ? m.completed : []).filter((id) => ids.includes(id))),
@@ -76,7 +91,15 @@ function restore(raw: unknown): Data {
       name: note(data.goal.name, 120),
       success: note(data.goal.success, 1000),
       weeks: data.goal.weeks,
+      ...(typeof data.goal.context === 'string' ? { context: note(data.goal.context, 2500) } : {}),
     };
+  clean.goalSource =
+    data.goalSource === 'custom' ||
+    (!data.goalSource && clean.goal.name && clean.goal.name !== consultationGoal.name)
+      ? 'custom'
+      : 'onboarding';
+  if (typeof data.onboardingSignature === 'string')
+    clean.onboardingSignature = data.onboardingSignature;
   if (
     typeof data.eventAnchor === 'string' &&
     /^\d{4}-\d{2}-\d{2}$/.test(data.eventAnchor) &&
@@ -97,6 +120,7 @@ type State = {
   notice: string;
   now: number;
   hydrate: () => Promise<void>;
+  syncOnboarding: (record: OnboardingRecord) => Promise<boolean>;
   clearError: () => void;
   saveNote: (kind: 'focus' | 'reflection', value: string) => Promise<boolean>;
   saveGoal: (goal: Goal) => Promise<boolean>;
@@ -139,17 +163,44 @@ export function createMemberStore(storage: Storage) {
       notice: '',
       now: 0,
       clearError: () => set({ error: '' }),
+      async syncOnboarding(record) {
+        const goal = goalFromOnboarding(record);
+        if (!goal || get().data.onboardingSignature === directionSignature(record)) return true;
+        return commit((data) => {
+          data.goal = data.goalSource === 'custom' ? { ...data.goal, context: goal.context } : goal;
+          data.onboardingSignature = directionSignature(record);
+          if (record.name) {
+            data.member.firstName = record.name;
+            data.member.initials = initialsFor(record.name);
+          }
+        }, 'Your Home now reflects your direction.');
+      },
       async hydrate() {
         if (get().status === 'loading' || get().status === 'ready') return;
         set({ status: 'loading', error: '' });
         try {
           const raw = await storage.getItem(MEMBER_KEY);
           let data = freshData();
+          let hasSavedCard = false;
+          let migratedData: Data | undefined;
           if (raw) {
             try {
-              data = restore(JSON.parse(raw));
+              const saved = JSON.parse(raw);
+              data = restore(saved);
+              hasSavedCard =
+                saved?.version === 1 &&
+                Boolean(saved.member) &&
+                isMembershipCard(saved.membershipCard);
+              const card = readMembershipCard(saved?.membershipCard);
+              if (saved?.version === 1 && saved.member && card && !hasSavedCard) {
+                // Change only the code on disk; retain all original member and card fields.
+                migratedData = {
+                  ...saved,
+                  membershipCard: { ...saved.membershipCard, code: card.code },
+                };
+              }
             } catch {
-              /* Recover demo defaults, preserve onboarding separately. */
+              /* Recover an empty Home, preserve onboarding separately. */
             }
           } else {
             const legacy = await storage.getItem(FOCUS_KEY);
@@ -171,11 +222,14 @@ export function createMemberStore(storage: Storage) {
               }
             }
           }
+          // Persist issuance or conversion before displaying the card; failed writes can retry.
+          if (migratedData) await write(migratedData);
+          else if (!hasSavedCard) await write(data);
           set({ data, status: 'ready', now: Date.now() });
         } catch {
           set({
             status: 'failed',
-            error: 'Your Home progress could not be loaded. Please try again.',
+            error: 'Your Home data could not be loaded or saved. Please try again.',
           });
         }
       },
@@ -210,13 +264,15 @@ export function createMemberStore(storage: Storage) {
         }
         return commit((d) => {
           d.goal = { ...goal, name: goal.name.trim(), success: goal.success.trim() };
+          d.goalSource = 'custom';
         }, 'Your plan has been updated.');
       },
       preset(membership, progress) {
         return commit((d) => {
-          if (progress === 'new' || progress === 'returning')
-            d.member = createMember(progress === 'new', membership);
-          else d.member.membership = membership;
+          if (progress === 'new' || progress === 'returning') {
+            const identity = { firstName: d.member.firstName, initials: d.member.initials };
+            d.member = { ...createMember(progress === 'new', membership), ...identity };
+          } else d.member.membership = membership;
           if (progress === 'complete') {
             const ids = lessons.filter((l) => canWatch(d.member, l)).map((l) => l.id);
             d.member.completed = ids;

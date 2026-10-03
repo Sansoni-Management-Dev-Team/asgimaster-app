@@ -90,6 +90,15 @@ describe('Migrated event lifecycle', () => {
   });
 });
 describe('Migrated Coach and Support', () => {
+  it('does not invent a goal for members who have not set their direction', () => {
+    const reply = C.demoReply('Help me plan my week', createMember(true), {
+      name: '',
+      success: '',
+      weeks: '52',
+    });
+    expect(reply.text).toContain('set up your direction from Home');
+    expect(reply.text).not.toContain('“”');
+  });
   it('restores unlimited chat history beyond the old entry-screen truncation', () => {
     const state = C.createCoachState(),
       member = createMember();

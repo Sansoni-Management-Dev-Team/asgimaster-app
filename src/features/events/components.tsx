@@ -84,7 +84,7 @@ export function EventSummary({ go }: { go: Go }) {
         </View>
       ))}
       <SavedState state={state} />
-      <TextAction label="Browse events ↗" onPress={() => go('events')} />
+      <TextAction label="Browse events" onPress={() => go('events')} />
     </View>
   );
 }

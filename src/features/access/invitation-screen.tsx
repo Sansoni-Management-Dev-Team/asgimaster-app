@@ -28,7 +28,7 @@ export function InvitationScreen() {
         style={{
           gap: theme.space.sm,
           borderLeftWidth: 2,
-          borderLeftColor: theme.colors.teal,
+          borderLeftColor: theme.colors.accent,
           paddingLeft: theme.space.md,
         }}
       >

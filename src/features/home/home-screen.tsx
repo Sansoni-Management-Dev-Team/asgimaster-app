@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { isComplete } from '@/features/onboarding/model';
 import { ProgressLoading } from '@/features/onboarding/progress-loading';
 import { useOnboarding } from '@/features/onboarding/store';
@@ -14,6 +14,8 @@ import { LessonScreen } from '../library/player';
 import { EventsScreen } from '../events/screen';
 import { CoachScreen } from '../coach/screen';
 import { SupportScreen } from '../support/screen';
+import { EmptyHome } from './empty-home';
+import { directionSignature } from './personalisation';
 const titles: Record<Destination, string> = {
   home: 'Today',
   library: 'Library',
@@ -33,20 +35,29 @@ export function HomeScreen() {
     void hydrate();
   }, [hydrate]);
   if (onboarding.hydration !== 'ready') return <ProgressLoading />;
-  if (!isComplete(onboarding.record)) return <Redirect href="/onboarding" />;
   return <MemberHome />;
 }
 function MemberHome() {
   const state = useMember();
   const hydrate = state.hydrate;
   const router = useRouter();
-  const params = useLocalSearchParams<{ view?: string; id?: string }>();
+  const params = useLocalSearchParams<{ view?: string; id?: string; preview?: string }>();
+  const record = useOnboarding((s) => s.record);
+  const complete = isComplete(record);
+  const preview = params.preview === 'empty';
+  const empty = !complete || preview;
+  const needsSync = complete && state.data.onboardingSignature !== directionSignature(record);
+  const syncOnboarding = state.syncOnboarding;
   const view: Destination =
     params.view && Object.hasOwn(titles, params.view) ? (params.view as Destination) : 'home';
   const [sheet, setSheet] = useState<Sheet | null>(null);
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+  useEffect(() => {
+    if (state.status === 'ready' && complete && !state.saving && !state.error)
+      void syncOnboarding(record);
+  }, [record, complete, state.status, state.saving, state.error, syncOnboarding]);
   const go: Go = (next, id) => {
     setSheet(null);
     state.clearError();
@@ -70,7 +81,7 @@ function MemberHome() {
           ? (view as Tab)
           : 'home';
   const migrated =
-    state.status === 'ready' ? (
+    state.status === 'ready' && !needsSync ? (
       view === 'library' ? (
         <LibraryScreen go={go} />
       ) : view === 'lesson' ? (
@@ -96,7 +107,7 @@ function MemberHome() {
       active={active}
       go={go}
       primary={
-        view === 'home' && state.status === 'ready'
+        view === 'home' && state.status === 'ready' && !empty && !needsSync
           ? { label: d.next.label, press: next }
           : undefined
       }
@@ -111,10 +122,24 @@ function MemberHome() {
             <Solid label="Retry loading Home" onPress={() => void hydrate()} />
           )}
         </>
+      ) : needsSync ? (
+        <>
+          <Heading title="Today" />
+          <Copy role={state.error ? 'alert' : 'status'}>
+            {state.error || 'Bringing your direction into Home…'}
+          </Copy>
+          {!state.saving && (
+            <Solid label="Retry personalising Home" onPress={() => void syncOnboarding(record)} />
+          )}
+        </>
       ) : (
         <>
           {view === 'home' ? (
-            <Dashboard go={go} open={open} next={next} />
+            empty ? (
+              <EmptyHome go={go} preview={preview} />
+            ) : (
+              <Dashboard go={go} open={open} next={next} />
+            )
           ) : (
             <MemberDestination
               key={`${view}-${params.id ?? ''}`}
@@ -129,7 +154,7 @@ function MemberHome() {
               {state.error}
             </Copy>
           )}
-          {!!state.notice && !sheet && (
+          {!!state.notice && !sheet && !preview && (
             <Copy
               role="status"
               accessibilityLiveRegion="polite"

@@ -13,10 +13,11 @@ import { CinemaButton, CinemaField, CinemaScreen, CinemaText } from './cinematic
 import { cinema as c } from './cinematic-theme';
 import { InvitationWelcome } from './invitation-welcome';
 import { Interlude } from './interlude';
+import { DirectionReview } from './direction-review';
 import { useMotion } from './use-motion';
+import { QuestionReveal, useQuestionEntrance } from './question-entrance';
 import { useOnboarding } from './store';
 import {
-  displayAnswer,
   fields,
   guardedStep,
   hasAnswer,
@@ -77,12 +78,17 @@ export function OnboardingScreen() {
   const navigation = useNavigation<
     NativeStackNavigationProp<{
       home: undefined;
-      onboarding: { step?: ScreenStep; edit?: string; from?: string };
+      onboarding: { step?: ScreenStep; edit?: string; from?: string; replay?: string };
     }>
   >();
   const focused = useIsFocused();
   const motion = useMotion();
-  const params = useLocalSearchParams<{ step?: string; edit?: string; from?: string }>();
+  const params = useLocalSearchParams<{
+    step?: string;
+    edit?: string;
+    from?: string;
+    replay?: string;
+  }>();
   const [validation, setValidation] = useState<{ step: ScreenStep; message: string } | null>(null);
   const [customIndustry, setCustomIndustry] = useState(false);
   const input = useRef<TextInput>(null);
@@ -96,17 +102,45 @@ export function OnboardingScreen() {
       : requested === 'direction' && hasAnswer(state.record, 'decision')
         ? 'direction'
         : guardedStep(requested, state.record);
+  const options =
+    step === 'decision'
+      ? ownershipOptions
+      : step === 'role'
+        ? roleOptions
+        : step === 'income'
+          ? rangesFor(incomeTypeFor(state.record.answers.rolePerspective)).map((range) => ({
+              value: range,
+              label: range.replaceAll('m', 'M').replaceAll('-', '–'),
+            }))
+          : step === 'industry'
+            ? industries.map((value) => ({ value, label: value }))
+            : null;
+  const textQuestion = !options || step === 'industry';
+  const fieldIndex = (options?.length ?? 0) + 1;
+  const footerIndex = fieldIndex + (textQuestion ? 1 : 0);
+  const entrance = useQuestionEntrance({
+    screen: step,
+    enabled: focused && state.hydration === 'ready' && isQuestion(step),
+    count: footerIndex + 1,
+    motion,
+  });
   const error = validation?.step === step ? validation.message : '';
   const setError = (message: string) => setValidation(message ? { step, message } : null);
   const hydrate = state.hydrate;
   const editing = params.edit === '1';
   const fromHome = params.from === 'home';
+  // Keep an intentional replay separate from stale question history, including after reload.
+  const replaying = requested === 'welcome' || params.replay === '1';
   const resumeHome =
-    isComplete(state.record) &&
-    (!requested || (state.enteredApp && !fromHome && requested !== 'welcome'));
+    isComplete(state.record) && !replaying && (!requested || (state.enteredApp && !fromHome));
   const href = (next: ScreenStep, edit = editing) => ({
     pathname: '/onboarding' as const,
-    params: { step: next, edit: edit ? '1' : '0', ...(fromHome ? { from: 'home' } : {}) },
+    params: {
+      step: next,
+      edit: edit ? '1' : '0',
+      ...(fromHome ? { from: 'home' } : {}),
+      ...(replaying ? { replay: '1' } : {}),
+    },
   });
   useEffect(() => {
     void hydrate();
@@ -125,6 +159,11 @@ export function OnboardingScreen() {
   }, [focused, motion.active, step]);
   useEffect(() => {
     if (!focused || !motion.ready) return;
+    // Questions reveal each part independently; this layer only handles their exit.
+    if (isQuestion(step)) {
+      fade.setValue(1);
+      return;
+    }
     fade.setValue(motion.reduced ? 1 : 0);
     const animation = Animated.timing(fade, {
       toValue: 1,
@@ -245,7 +284,11 @@ export function OnboardingScreen() {
     return (
       <InvitationWelcome
         notice={state.notice}
-        onAccept={() => router.push(href('beginning', false))}
+        initialName={state.nameDraft || state.record.name}
+        onAccept={(name) => {
+          state.setName(name);
+          router.push(href('beginning', false));
+        }}
       />
     );
   if (step === 'beginning' || step === 'direction')
@@ -259,99 +302,39 @@ export function OnboardingScreen() {
     );
   if (step === 'complete')
     return (
-      <CinemaScreen title="Your saved direction">
-        <Animated.View style={{ opacity: fade, gap: 24 }}>
-          <CinemaText variant="title" style={{ textAlign: 'center', fontSize: 26, lineHeight: 34 }}>
-            {'Your empire.\nYour direction.'}
-          </CinemaText>
-          <CinemaText
-            role="status"
-            accessibilityLiveRegion="polite"
-            style={{ color: c.muted, textAlign: 'center', fontSize: 14 }}
-          >
-            You’ve made your first move. Here’s the future you’re working towards.
-          </CinemaText>
-          {questions.map((question) => (
-            <View
-              key={question}
-              style={{ gap: 8, paddingBottom: 16, borderBottomWidth: 1, borderColor: c.fold }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                }}
-              >
-                <CinemaText style={{ color: c.muted, fontSize: 12, flex: 1 }}>
-                  {summaryLabels[question]}
-                </CinemaText>
-                <CinemaButton
-                  label="Edit"
-                  accessibilityLabel={`Edit ${summaryLabels[question].toLowerCase()}`}
-                  onPress={() => depart(() => router.push(href(question, true)))}
-                />
-              </View>
-              <CinemaText style={{ fontSize: 15 }}>
-                {displayAnswer(state.record, question)}
-              </CinemaText>
-            </View>
-          ))}
-          <CinemaText style={{ color: c.muted, fontSize: 12, textAlign: 'center' }}>
-            Your answers are saved on this device.
-          </CinemaText>
-          <CinemaButton
-            label={fromHome ? 'Back to Home' : 'Enter my empire'}
-            solid
-            onPress={enterApp}
-          />
-          {!fromHome && <CinemaButton label="Back to skills" onPress={back} />}
-        </Animated.View>
-      </CinemaScreen>
+      <DirectionReview
+        record={state.record}
+        fade={fade}
+        fromHome={fromHome}
+        onEdit={(question) => depart(() => router.push(href(question, true)))}
+        onEnter={enterApp}
+      />
     );
   const q = copy[step];
   const value = state.drafts[step] ?? state.record.answers[fields[step]] ?? '';
   const common = step === 'industry' && industries.includes(value) && !customIndustry;
-  const options =
-    step === 'decision'
-      ? ownershipOptions
-      : step === 'role'
-        ? roleOptions
-        : step === 'income'
-          ? rangesFor(incomeTypeFor(state.record.answers.rolePerspective)).map((range) => ({
-              value: range,
-              label: range.replaceAll('m', 'M').replaceAll('-', '–'),
-            }))
-          : step === 'industry'
-            ? industries.map((value) => ({ value, label: value }))
-            : null;
   const description =
     step === 'income'
       ? incomeTypeFor(state.record.answers.rolePerspective) === 'business-owner'
         ? 'What’s your annual business revenue or salary range?'
         : 'What’s your annual salary range?'
       : q.description;
-  const textQuestion = !options || step === 'industry';
   return (
     <CinemaScreen title={summaryLabels[step]}>
-      <Animated.View
-        style={{
-          opacity: fade,
-          transform: [
-            {
-              translateY: fade.interpolate({
-                inputRange: [0, 1],
-                outputRange: [motion.reduced ? 0 : 24, 0],
-              }),
-            },
-          ],
-        }}
-      >
-        <View style={{ marginBottom: 24, gap: 22.4 }}>
+      <Animated.View style={{ opacity: fade }}>
+        <QuestionReveal
+          entrance={entrance}
+          index={0}
+          style={{ marginBottom: c.space.xl + c.space.sm, gap: c.space.xl }}
+        >
           <CinemaText
             variant="title"
-            style={{ textAlign: 'center', fontSize: 25.35, lineHeight: 32.95 }}
+            style={{
+              textAlign: 'center',
+              fontSize: c.type.title,
+              lineHeight: c.type.title * 1.25,
+              marginHorizontal: -c.space.md,
+            }}
           >
             {q.title}
           </CinemaText>
@@ -362,52 +345,65 @@ export function OnboardingScreen() {
                 textAlign: 'center',
                 maxWidth: 290,
                 alignSelf: 'center',
-                fontSize: 13.6,
-                lineHeight: 22.4,
+                fontSize: c.type.small,
+                lineHeight: c.space.lg,
               }}
             >
               {description}
             </CinemaText>
           )}
-        </View>
+        </QuestionReveal>
         {options && (
           <View
             accessibilityRole="radiogroup"
             accessibilityLabel={`${q.title.replace('\n', ' ')}. Selecting an answer continues automatically.`}
             aria-invalid={Boolean(error)}
             style={{
-              gap: step === 'industry' ? 8 : 5.6,
+              rowGap: c.space.md,
+              columnGap: c.space.sm,
               flexDirection: step === 'industry' ? 'row' : 'column',
               flexWrap: step === 'industry' ? 'wrap' : 'nowrap',
             }}
           >
             {options.map((option, index) => (
-              <Choice
+              <QuestionReveal
                 key={option.value}
-                label={option.label}
-                description={'description' in option ? option.description : undefined}
-                selected={value === option.value && (step !== 'industry' || !customIndustry)}
-                disabled={state.saving}
-                reduced={motion.reduced}
-                industry={step === 'industry'}
-                controlRef={(node) => {
-                  choiceRefs.current[index] = node;
-                }}
-                tabStop={
-                  value === option.value || (!options.some((o) => o.value === value) && index === 0)
-                }
-                onPress={() => choose(option.value)}
-                onNavigate={(direction) => {
-                  const next = (index + direction + options.length) % options.length;
-                  choose(options[next].value);
-                  choiceRefs.current[next]?.focus();
-                }}
-              />
+                entrance={entrance}
+                index={index + 1}
+                style={step === 'industry' ? { width: '48%', flexGrow: 1 } : undefined}
+              >
+                <Choice
+                  label={option.label}
+                  description={'description' in option ? option.description : undefined}
+                  selected={value === option.value && (step !== 'industry' || !customIndustry)}
+                  disabled={state.saving}
+                  reduced={motion.reduced}
+                  industry={step === 'industry'}
+                  controlRef={(node) => {
+                    choiceRefs.current[index] = node;
+                  }}
+                  tabStop={
+                    value === option.value ||
+                    (!options.some((o) => o.value === value) && index === 0)
+                  }
+                  onPress={() => choose(option.value)}
+                  onNavigate={(direction) => {
+                    entrance.revealAll();
+                    const next = (index + direction + options.length) % options.length;
+                    choose(options[next].value);
+                    requestAnimationFrame(() => choiceRefs.current[next]?.focus());
+                  }}
+                />
+              </QuestionReveal>
             ))}
           </View>
         )}
         {textQuestion && (
-          <View style={{ marginTop: step === 'industry' ? 32 : 0 }}>
+          <QuestionReveal
+            entrance={entrance}
+            index={fieldIndex}
+            style={{ marginTop: step === 'industry' ? 32 : 0 }}
+          >
             <CinemaField
               label={step === 'industry' ? 'Other industry' : summaryLabels[step] + ' (required)'}
               visibleLabel={step === 'industry'}
@@ -436,7 +432,7 @@ export function OnboardingScreen() {
               submitBehavior={step === 'industry' ? 'submit' : 'newline'}
               onSubmitEditing={step === 'industry' ? () => void submit() : undefined}
             />
-          </View>
+          </QuestionReveal>
         )}
         {!!error && !textQuestion && (
           <CinemaText
@@ -465,24 +461,27 @@ export function OnboardingScreen() {
             Saving…
           </CinemaText>
         )}
-        {textQuestion && (step !== 'industry' || (!!value.trim() && !common)) && (
-          <View style={{ paddingTop: 16 }}>
+        <QuestionReveal entrance={entrance} index={footerIndex}>
+          {textQuestion && (step !== 'industry' || (!!value.trim() && !common)) && (
+            <View style={{ paddingTop: 16 }}>
+              <CinemaButton
+                label={
+                  editing ? 'Save changes' : step === 'skills' ? 'This is my beginning' : 'Continue'
+                }
+                prominent
+                disabled={state.saving}
+                onPress={() => void submit()}
+              />
+            </View>
+          )}
+          <View style={{ marginTop: 8 }}>
             <CinemaButton
-              label={
-                editing ? 'Save changes' : step === 'skills' ? 'This is my beginning' : 'Continue'
-              }
+              label={editing && isComplete(state.record) ? 'Cancel edit' : 'Back'}
               disabled={state.saving}
-              onPress={() => void submit()}
+              onPress={back}
             />
           </View>
-        )}
-        <View style={{ marginTop: 8 }}>
-          <CinemaButton
-            label={editing && isComplete(state.record) ? 'Cancel edit' : 'Back'}
-            disabled={state.saving}
-            onPress={back}
-          />
-        </View>
+        </QuestionReveal>
       </Animated.View>
     </CinemaScreen>
   );

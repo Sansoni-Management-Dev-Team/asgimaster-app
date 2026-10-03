@@ -89,7 +89,7 @@ export const memberships = {
   paused: { name: 'Paused', status: 'paused', access: ['foundation'], ai: false, coach: false },
 } as const;
 export type Membership = keyof typeof memberships;
-export type Goal = { name: string; success: string; weeks: string };
+export type Goal = { name: string; success: string; weeks: string; context?: string };
 export const consultationGoal: Goal = {
   name: 'Grow with focus',
   success: 'Define three growth priorities and turn them into a weekly action plan.',
@@ -110,8 +110,8 @@ export type Member = {
 };
 export function createMember(fresh = false, membership: Membership = 'growth'): Member {
   return {
-    firstName: 'Shan',
-    initials: 'SY',
+    firstName: fresh ? '' : 'Shan',
+    initials: fresh ? 'M' : 'SY',
     membership,
     positions: fresh ? {} : { direction: 720, priorities: 1080, blueprint: 480 },
     completed: fresh ? [] : ['direction', 'priorities'],
@@ -131,7 +131,7 @@ export function getDashboard(member: Member, goal: Goal) {
   const entitled = lessons.filter((lesson) => canWatch(member, lesson));
   const complete = entitled.filter((lesson) => member.completed.includes(lesson.id));
   const incomplete = entitled.filter((lesson) => !member.completed.includes(lesson.id));
-  const words = `${goal.name} ${goal.success}`.toLowerCase();
+  const words = `${goal.name} ${goal.success} ${goal.context ?? ''}`.toLowerCase();
   const score = (lesson: Lesson) =>
     lesson.tags.reduce((sum, tag) => sum + Number(words.includes(tag)), 0);
   const ranked = [...incomplete].sort((a, b) => score(b) - score(a));

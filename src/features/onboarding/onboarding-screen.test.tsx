@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render } from '@testing-library/react-native';
+import { Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { OnboardingScreen } from './onboarding-screen';
@@ -11,12 +12,17 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
 }));
-jest.mock('./invitation-welcome', () => ({ InvitationWelcome: () => null }));
-jest.mock('./use-motion', () => ({
-  useMotion: () => ({ reduced: true, ready: true, active: true }),
+const mockInvitationWelcome = jest.fn((_props: { notice: string; onAccept: () => void }) => null);
+jest.mock('./invitation-welcome', () => ({
+  InvitationWelcome: (props: { notice: string; onAccept: () => void }) =>
+    mockInvitationWelcome(props),
 }));
+let mockMotion = { reduced: true, ready: true, active: true };
+jest.mock('./use-motion', () => ({ useMotion: () => mockMotion }));
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn(), setParams: jest.fn() };
-let mockParams: { step?: string; edit?: string; from?: string } = { step: 'decision' };
+let mockParams: { step?: string; edit?: string; from?: string; replay?: string } = {
+  step: 'decision',
+};
 const mockRedirect = jest.fn((props: unknown) => null);
 const mockNavigation = {
   isFocused: () => true,
@@ -55,9 +61,16 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(AsyncStorage.setItem).mockResolvedValue();
   mockParams = { step: 'decision' };
+  mockMotion = { reduced: true, ready: true, active: true };
+  // Jest has no native animation runtime; exercise the same timeline with the JS driver.
+  const timing = Animated.timing;
+  jest
+    .spyOn(Animated, 'timing')
+    .mockImplementation((value, config) => timing(value, { ...config, useNativeDriver: false }));
   useOnboarding.setState({ ...useOnboarding.getInitialState(), hydration: 'ready' }, true);
 });
 afterEach(() => {
+  jest.restoreAllMocks();
   jest.clearAllTimers();
   jest.useRealTimers();
 });
@@ -71,20 +84,134 @@ async function settle() {
 }
 
 describe('Native onboarding controls', () => {
+  it('reveals the heading before options and does not restart the entrance when an answer changes', async () => {
+    mockMotion.reduced = false;
+    const screen = await render(<OnboardingScreen />, { wrapper });
+    expect(screen.getByRole('header', { name: /What will you/ })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Find a business to buy' })).toBeNull();
+    await act(async () => jest.advanceTimersByTime(1000));
+    expect(screen.getByRole('radio', { name: 'Find a business to buy' })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Explore my options' })).toBeNull();
+    await act(async () => jest.advanceTimersByTime(1000));
+    expect(screen.getByRole('radio', { name: 'Explore my options' })).toBeTruthy();
+    await act(async () => useOnboarding.getState().setDraft('decision', 'explore-options'));
+    expect(screen.getByRole('radio', { name: 'Explore my options' })).toBeTruthy();
+  });
+
+  it('restarts the sequence for every question, including text answers', async () => {
+    mockMotion.reduced = false;
+    useOnboarding.setState({ record: complete });
+    mockParams = { step: 'decision', replay: '1' };
+    const screen = await render(<OnboardingScreen />, { wrapper });
+    for (const step of ['decision', 'industry', 'role', 'income', 'goal', 'challenge', 'skills']) {
+      mockParams = { step, replay: '1' };
+      await screen.rerender(<OnboardingScreen />);
+      expect(
+        screen.getByTestId('question-reveal-1', { includeHiddenElements: true }).props[
+          'aria-hidden'
+        ],
+      ).toBe(true);
+      await act(async () => jest.advanceTimersByTime(2200));
+      expect(screen.getByTestId('question-reveal-1').props['aria-hidden']).toBe(false);
+      expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+    }
+  });
+
+  it('waits for the motion preference and reveals everything immediately when reduced motion is enabled', async () => {
+    mockMotion.ready = false;
+    const screen = await render(<OnboardingScreen />, { wrapper });
+    expect(screen.queryByRole('radio', { name: 'Find a business to buy' })).toBeNull();
+    mockMotion.ready = true;
+    await screen.rerender(<OnboardingScreen />);
+    expect(screen.getByRole('radio', { name: 'Explore my options' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+  });
+
+  it('replays the invitation and questions for a returning member without clearing saved answers', async () => {
+    mockParams = { step: 'welcome' };
+    useOnboarding.setState({ record: complete, enteredApp: true });
+    const screen = await render(<OnboardingScreen />, { wrapper });
+    await act(async () => {
+      mockInvitationWelcome.mock.calls.at(-1)![0].onAccept();
+    });
+    expect(mockRouter.push).toHaveBeenLastCalledWith({
+      pathname: '/onboarding',
+      params: { step: 'beginning', edit: '0', replay: '1' },
+    });
+    mockParams = { step: 'beginning', replay: '1' };
+    await screen.rerender(<OnboardingScreen />);
+    expect(screen.queryByRole('button', { name: 'Skip introduction' })).toBeNull();
+    await act(async () => {
+      jest.advanceTimersByTime(6000);
+    });
+    expect(mockRouter.replace).toHaveBeenLastCalledWith({
+      pathname: '/onboarding',
+      params: { step: 'decision', edit: '0', replay: '1' },
+    });
+    mockParams = { step: 'decision', replay: '1' };
+    await screen.rerender(<OnboardingScreen />);
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(screen.getByRole('radio', { name: 'Find a business to buy' })).toBeTruthy();
+    expect(useOnboarding.getState().record).toEqual(complete);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('radio', { name: 'Find a business to buy' }));
+    await settle();
+    expect(mockRouter.push).toHaveBeenLastCalledWith({
+      pathname: '/onboarding',
+      params: { step: 'direction', edit: '0', replay: '1' },
+    });
+  });
+  it('keeps a replay question open after reloading completed progress and enters Home only from review', async () => {
+    mockParams = { step: 'goal', replay: '1' };
+    jest.mocked(AsyncStorage.getItem).mockResolvedValueOnce(JSON.stringify(complete));
+    useOnboarding.setState({ hydration: 'idle' });
+    const screen = await render(<OnboardingScreen />, { wrapper });
+    expect(useOnboarding.getState().enteredApp).toBe(true);
+    expect(screen.getByLabelText('Your 12-month goal (required)').props.value).toBe('Build a team');
+    expect(mockRedirect).not.toHaveBeenCalled();
+    mockParams = { step: 'complete', replay: '1' };
+    await screen.rerender(<OnboardingScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Enter my empire' }));
+    await settle();
+    expect(mockNavigation.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: 'home' }] });
+    expect(useOnboarding.getState().record).toEqual(complete);
+  });
   it('enters Home with a fresh stack instead of replaying the introduction', async () => {
     mockParams = { step: 'complete' };
     useOnboarding.setState({ record: complete });
     const screen = await render(<OnboardingScreen />, { wrapper });
+    expect(screen.getAllByRole('button', { name: /^Edit / })).toHaveLength(3);
+    expect(screen.getByText('Build a team')).toBeTruthy();
+    expect(screen.getByText('Funding')).toBeTruthy();
+    expect(screen.getByText('Leadership')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Edit your industry' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Replay introduction' })).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Enter my empire' }));
     await settle();
     expect(mockNavigation.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: 'home' }] });
     expect(useOnboarding.getState().record).toEqual(complete);
   });
+  it.each([
+    ['Edit your 12-month goal', 'goal'],
+    ['Edit your challenge', 'challenge'],
+    ['Edit your growth', 'skills'],
+  ])('opens the correct question from %s on the direction summary', async (label, step) => {
+    mockParams = { step: 'complete', replay: '1' };
+    useOnboarding.setState({ record: complete });
+    const screen = await render(<OnboardingScreen />, { wrapper });
+    await fireEvent.press(screen.getByRole('button', { name: label }));
+    await settle();
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/onboarding',
+      params: { step, edit: '1', replay: '1' },
+    });
+    expect(useOnboarding.getState().record).toEqual(complete);
+  });
   it('keeps a deliberate review available from Home and returns to Home after editing', async () => {
     mockParams = { step: 'complete', from: 'home' };
     useOnboarding.setState({ record: complete });
     const screen = await render(<OnboardingScreen />, { wrapper });
+    expect(screen.getAllByRole('button', { name: /^Edit / })).toHaveLength(7);
     await fireEvent.press(screen.getByRole('button', { name: 'Edit your 12-month goal' }));
     await settle();
     expect(mockRouter.push).toHaveBeenCalledWith({

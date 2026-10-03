@@ -76,7 +76,7 @@ function ViewlessSquares({ x, y }: { x: number; y: number }) {
 function Overview({ event }: { event: MemberEvent }) {
   return (
     <View style={{ gap: 12 }}>
-      <Copy caps size={12} style={{ color: theme.colors.teal }}>
+      <Copy caps size={12} style={{ color: theme.colors.accent }}>
         {event.format === 'online' ? 'Online' : 'In person'} · {event.hours}{' '}
         {event.hours === 1 ? 'hour' : 'hours'}
       </Copy>
@@ -214,10 +214,9 @@ export function EventsScreen({ id, go, progress }: { id?: string; go: Go; progre
   return (
     <MemberFrame title={titles[view] ?? 'Events'} active="events" go={go} footerContent={footer}>
       <PageHeader
-        stacked
         title={titles[view] ?? 'Events'}
-        eyebrow={view === 'list' ? 'Master App' : undefined}
         back={view !== 'list' ? () => go('events') : undefined}
+        backLabel="Events"
         options={() => {
           setPreview(phase);
           setPanel('Events preview');
@@ -341,7 +340,7 @@ export function EventsScreen({ id, go, progress }: { id?: string; go: Go; progre
                 width: 64,
                 height: 64,
                 borderWidth: 1,
-                borderColor: theme.colors.teal,
+                borderColor: theme.colors.accent,
                 borderRadius: 32,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -359,8 +358,8 @@ export function EventsScreen({ id, go, progress }: { id?: string; go: Go; progre
               </Copy>
               <Copy style={{ marginBottom: 24 }}>{event.description}</Copy>
               <EventSection title="In your plan">
-                <Card style={{ borderLeftWidth: 2, borderLeftColor: theme.colors.teal }}>
-                  <Copy>{goal.name}</Copy>
+                <Card style={{ borderLeftWidth: 2, borderLeftColor: theme.colors.accent }}>
+                  {!!goal.name && <Copy>{goal.name}</Copy>}
                   <Copy>{event.goalNote}</Copy>
                   <Copy size={12} muted>
                     Registration adds an upcoming commitment. Attendance is separate from lesson
@@ -399,7 +398,7 @@ export function EventsScreen({ id, go, progress }: { id?: string; go: Go; progre
             <>
               <EventSection title="Added to your plan">
                 <Card>
-                  <Copy>{goal.name}</Copy>
+                  {!!goal.name && <Copy>{goal.name}</Copy>}
                   <Copy>
                     An upcoming commitment. It becomes an attended event only after check-in.
                   </Copy>
@@ -420,7 +419,7 @@ export function EventsScreen({ id, go, progress }: { id?: string; go: Go; progre
                 {event.format === 'in-person' ? (
                   <>
                     <SampleCode />
-                    <Copy size={12} style={{ color: theme.colors.teal }}>
+                    <Copy size={12} style={{ color: theme.colors.accent }}>
                       Demo QR · not valid for admission
                     </Copy>
                   </>
@@ -435,7 +434,7 @@ export function EventsScreen({ id, go, progress }: { id?: string; go: Go; progre
                 <Copy size={12} style={{ textAlign: 'center', flexShrink: 1 }}>
                   {record?.passId}
                 </Copy>
-                <Copy size={12} style={{ color: theme.colors.teal }}>
+                <Copy size={12} style={{ color: theme.colors.accent }}>
                   {status === 'attended' ? 'Attendance already recorded' : 'Sample registration'}
                 </Copy>
               </Card>
@@ -531,7 +530,7 @@ export function EventsScreen({ id, go, progress }: { id?: string; go: Go; progre
           <>
             {panel === 'Offline preview' && event && allowed && registered && (
               <Card>
-                <Copy size={12} style={{ color: theme.colors.teal }}>
+                <Copy size={12} style={{ color: theme.colors.accent }}>
                   Simulated offline state · no connectivity change
                 </Copy>
                 <Overview event={event} />

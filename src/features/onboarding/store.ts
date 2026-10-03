@@ -26,6 +26,8 @@ type State = {
   storageError: string;
   notice: string;
   enteredApp: boolean;
+  nameDraft: string;
+  setName: (name: string) => void;
   enterApp: () => void;
   hydrate: () => Promise<void>;
   setDraft: (step: Question, value: string) => void;
@@ -43,6 +45,11 @@ export function createOnboardingStore(storage: Storage) {
     storageError: '',
     notice: '',
     enteredApp: false,
+    nameDraft: '',
+    setName(name) {
+      if (typeof name === 'string' && name.trim() && name.trim().length <= 80)
+        set({ nameDraft: name.trim().replace(/\s+/g, ' ') });
+    },
     enterApp() {
       if (get().hydration === 'ready' && isComplete(get().record)) set({ enteredApp: true });
     },
@@ -77,7 +84,14 @@ export function createOnboardingStore(storage: Storage) {
           const drafts = Object.fromEntries(
             questions.map((step) => [step, record.answers[fields[step]] ?? '']),
           );
-          set({ record, drafts, hydration: 'ready', notice, enteredApp: isComplete(record) });
+          set({
+            record,
+            drafts,
+            nameDraft: record.name ?? '',
+            hydration: 'ready',
+            notice,
+            enteredApp: isComplete(record),
+          });
         } catch {
           // Do not overwrite data after a failed read; the user can retry hydration.
           set({
@@ -104,7 +118,8 @@ export function createOnboardingStore(storage: Storage) {
     async submit(step, value) {
       if (get().hydration !== 'ready' || get().saving)
         return { ok: false, error: 'Please wait for your saved progress.' };
-      const result = answerQuestion(get().record, step, value);
+      const record = get().nameDraft ? { ...get().record, name: get().nameDraft } : get().record;
+      const result = answerQuestion(record, step, value);
       if (result.error) return { ok: false, error: result.error };
       set({ saving: true, storageError: '' });
       try {

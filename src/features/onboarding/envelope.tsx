@@ -34,7 +34,13 @@ function degrees(clock: Animated.Value, fn: (time: number) => number) {
 }
 export function Crown({ size = 24, color = c.paper }: { size?: number; color?: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 32 28" accessible={false} aria-hidden>
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 28"
+      accessible={Platform.OS === 'web' ? undefined : false}
+      aria-hidden
+    >
       <Path
         d="m4 8 6 6 6-10 6 10 6-6-3 15H7L4 8Z M8 26h16"
         fill="none"

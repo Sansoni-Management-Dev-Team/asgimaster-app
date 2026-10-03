@@ -1,7 +1,7 @@
 import tokens from '@/theme/tokens.generated.json';
 import { theme } from '@/theme';
 
-// Concept 2 overrides the member-app palette. Values come from the existing design system.
+// The cinematic introduction shares the member app's monochrome design tokens.
 export const cinema = {
   ...theme,
   black: tokens['color-black'],
@@ -14,7 +14,7 @@ export const cinema = {
   surface: tokens['color-mono-850'],
   fold: tokens['color-mono-800'],
   dark: tokens['color-mono-950'],
-  corner: 3.2,
+  corner: theme.radius.control,
 };
 export const shade = (opacity: number) =>
   `${cinema.black}${Math.round(opacity * 255)

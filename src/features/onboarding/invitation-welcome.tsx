@@ -22,10 +22,9 @@ import { CinemaButton, CinemaField, CinemaScreen, CinemaText, MotionIcon } from 
 import { cinema as c, shade } from './cinematic-theme';
 import { useMotion } from './use-motion';
 
-// The invitation's name and pause preference are session-only, as in Concept 2.
-const useInvitation = create<{ name: string; paused: boolean }>(() => ({
+// The invitation's name is session-only, as in Concept 2.
+const useInvitation = create<{ name: string }>(() => ({
   name: '',
-  paused: false,
 }));
 type Stage = 'approach' | 'delivery' | 'opening' | 'revealed';
 function BackgroundFilm({
@@ -92,23 +91,64 @@ function BackgroundFilm({
     </Animated.View>
   );
 }
-export function InvitationWelcome({ onAccept, notice }: { onAccept: () => void; notice?: string }) {
+export function InvitationWelcome({
+  onAccept,
+  notice,
+  initialName = '',
+}: {
+  onAccept: (name: string) => void;
+  notice?: string;
+  initialName?: string;
+}) {
   const invitation = useInvitation();
-  const [name, setName] = useState(invitation.name);
+  const [name, setName] = useState(invitation.name || initialName);
   const [error, setError] = useState('');
   const [stage, setStage] = useState<Stage>('approach');
-  const [paused, setPaused] = useState(false);
-  const [manualPlay, setManualPlay] = useState(false);
+  const [replayCount, setReplayCount] = useState(0);
   const [filmVisible, setFilmVisible] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const [loaded] = useFonts({ Caveat: require('../../../assets/onboarding/caveat-medium.ttf') });
   const [clock] = useState(() => new Animated.Value(0));
   const elapsed = useRef(0);
   const [film] = useState(() => new Animated.Value(0));
+  const [exitOpacity] = useState(() => new Animated.Value(1));
+  const [exiting, setExiting] = useState(false);
+  const exitRequested = useRef(false);
   const input = useRef<TextInput>(null);
   const motion = useMotion();
   const focused = useIsFocused();
   const { height, fontScale } = useWindowDimensions();
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!focused) {
+      exitRequested.current = false;
+      queueMicrotask(() => {
+        if (!cancelled) setExiting(false);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!exiting) {
+      exitOpacity.setValue(1);
+      return;
+    }
+    if (!motion.active) return;
+    const animation = Animated.timing(exitOpacity, {
+      toValue: 0,
+      duration: motion.reduced ? 0 : 750,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start(({ finished }) => {
+      if (finished && !cancelled) onAccept(invitation.name);
+    });
+    return () => {
+      cancelled = true;
+      animation.stop();
+    };
+  }, [exitOpacity, exiting, focused, invitation.name, motion.active, motion.reduced, onAccept]);
 
   useEffect(() => {
     const listener = clock.addListener(({ value }) => {
@@ -121,7 +161,6 @@ export function InvitationWelcome({ onAccept, notice }: { onAccept: () => void; 
       !motion.ready ||
       !focused ||
       !motion.active ||
-      paused ||
       (stage !== 'approach' && stage !== 'opening')
     )
       return;
@@ -150,7 +189,16 @@ export function InvitationWelcome({ onAccept, notice }: { onAccept: () => void; 
       cancelled = true;
       animation.stop();
     };
-  }, [clock, focused, invitation.name, motion.active, motion.ready, motion.reduced, paused, stage]);
+  }, [
+    clock,
+    focused,
+    invitation.name,
+    motion.active,
+    motion.ready,
+    motion.reduced,
+    replayCount,
+    stage,
+  ]);
   useEffect(() => {
     let cancelled = false;
     const reveal = stage === 'delivery' || stage === 'opening';
@@ -170,20 +218,20 @@ export function InvitationWelcome({ onAccept, notice }: { onAccept: () => void; 
       cancelled = true;
       animation.stop();
     };
-  }, [film, motion.reduced, stage]);
-  function skip() {
-    clock.stopAnimation();
-    clock.setValue(stage === 'opening' ? OPENED : ARRIVAL);
-    setStage(stage === 'opening' ? 'revealed' : 'delivery');
-  }
+  }, [film, motion.reduced, replayCount, stage]);
   function replay() {
+    if (exitRequested.current) return;
     clock.stopAnimation();
     clock.setValue(0);
     elapsed.current = 0;
-    setPaused(false);
+    film.stopAnimation();
+    film.setValue(0);
+    setFilmVisible(false);
+    // Also restart when replay is pressed during the approach itself.
+    setReplayCount((count) => count + 1);
     setStage('approach');
-    setName(invitation.name);
     setError('');
+    setAnnouncement('Invitation animation restarted.');
   }
   function confirm() {
     const clean = name.trim().replace(/\s+/g, ' ');
@@ -199,23 +247,20 @@ export function InvitationWelcome({ onAccept, notice }: { onAccept: () => void; 
     Keyboard.dismiss();
     setName(clean);
     useInvitation.setState({ name: clean });
-    setPaused(false);
     setStage('opening');
   }
-  const videoControl = (
+  function accept() {
+    if (stage !== 'revealed' || !focused || exitRequested.current) return;
+    exitRequested.current = true;
+    setExiting(true);
+  }
+  const replayControl = (
     <CinemaButton
-      label={
-        (motion.reduced ? !manualPlay : invitation.paused)
-          ? 'Play background video'
-          : 'Pause background video'
-      }
-      disabled={stage === 'revealed'}
-      onPress={() =>
-        motion.reduced
-          ? setManualPlay(!manualPlay)
-          : useInvitation.setState({ paused: !invitation.paused })
-      }
+      label="Replay invitation"
+      onPress={replay}
+      disabled={exiting}
       style={{
+        ...(exiting ? { opacity: 1 } : {}),
         borderWidth: 1,
         borderColor: c.border,
         borderRadius: 48,
@@ -223,173 +268,121 @@ export function InvitationWelcome({ onAccept, notice }: { onAccept: () => void; 
         paddingHorizontal: 0,
       }}
     >
-      <MotionIcon name={(motion.reduced ? !manualPlay : invitation.paused) ? 'play' : 'pause'} />
+      <MotionIcon name="replay" />
     </CinemaButton>
   );
-  const animationControls = (
-    <>
-      <CinemaButton
-        label={paused ? 'Play invitation animation' : 'Pause invitation animation'}
-        disabled={stage === 'revealed'}
-        onPress={() => setPaused(!paused)}
-        style={{
-          borderWidth: 1,
-          borderColor: c.border,
-          borderRadius: 48,
-          width: 48,
-          paddingHorizontal: 0,
-        }}
-      >
-        <MotionIcon name={paused ? 'play' : 'pause'} />
-      </CinemaButton>
-      <CinemaButton
-        label={stage === 'approach' ? 'Skip animation' : 'Show letter'}
-        disabled={stage === 'revealed'}
-        onPress={skip}
-      />
-    </>
-  );
   return (
-    <CinemaScreen
-      title="Your private invitation"
-      backdrop={
-        <BackgroundFilm
-          visible={filmVisible}
-          playing={focused && motion.active && (motion.reduced ? manualPlay : !invitation.paused)}
-          level={film}
-        />
-      }
-      contentStyle={stage === 'approach' ? { justifyContent: 'center' } : { paddingBottom: 64 }}
-    >
-      <CinemaText
-        variant="title"
-        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' }}
-      >
-        Your private invitation
-      </CinemaText>
-      {stage === 'delivery' && (
-        <View style={{ alignItems: 'flex-end', minHeight: 56, marginBottom: 'auto' }}>
-          {videoControl}
-        </View>
-      )}
-      <Envelope
-        clock={clock}
-        name={invitation.name}
-        opening={stage === 'opening' || stage === 'revealed'}
-        revealed={stage === 'revealed'}
-        fontLoaded={loaded}
-        phase={stage}
-        reducedMotion={motion.reduced}
-      />
-      {stage === 'approach' && (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-          {animationControls}
-        </View>
-      )}
-      {stage === 'delivery' && (
-        <View
-          style={{
-            gap: 18,
-            paddingTop: Math.max(24, Math.min(120, (height * 0.25 - 104) / fontScale)),
-          }}
+    <View style={{ flex: 1, backgroundColor: c.black }}>
+      <Animated.View testID="invitation-fade" style={{ flex: 1, opacity: exitOpacity }}>
+        <CinemaScreen
+          title="Your private invitation"
+          backdrop={
+            <BackgroundFilm
+              key={replayCount}
+              visible={filmVisible}
+              playing={focused && motion.active && !motion.reduced}
+              level={film}
+            />
+          }
+          contentStyle={stage === 'approach' ? { justifyContent: 'center' } : { paddingBottom: 64 }}
         >
-          <LinearGradient
-            pointerEvents="none"
-            colors={[shade(0), c.black, c.black]}
-            locations={[0, 0.07, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <CinemaText style={{ fontSize: 13.4, color: c.muted }}>
-            Confirm your name to open your invitation.
+          <CinemaText
+            variant="title"
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' }}
+          >
+            Your private invitation
           </CinemaText>
-          <CinemaField
-            label="Your name"
-            visibleLabel
-            underline
-            nativeID="invitation-name"
-            inputRef={input}
-            value={name}
-            onChangeText={(text) => {
-              setName(text);
-              setError('');
-            }}
-            error={error}
-            maxLength={80}
-            autoComplete="name"
-            autoCapitalize="words"
-            returnKeyType="go"
-            onSubmitEditing={confirm}
+          {stage === 'delivery' && (
+            <View style={{ alignItems: 'flex-end', minHeight: 56, marginBottom: 'auto' }}>
+              {replayControl}
+            </View>
+          )}
+          <Envelope
+            clock={clock}
+            name={invitation.name}
+            opening={stage === 'opening' || stage === 'revealed'}
+            revealed={stage === 'revealed'}
+            fontLoaded={loaded}
+            phase={stage}
+            reducedMotion={motion.reduced}
           />
-          <CinemaButton solid label="Accept the Envelope" onPress={confirm} />
-        </View>
-      )}
-      {(stage === 'opening' || stage === 'revealed') && (
-        <View testID="invitation-actions" style={{ gap: 18 }}>
-          {/* Keep the same measured footer throughout opening, including larger text. */}
-          <View>
+          {stage === 'approach' && (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
+              {replayControl}
+            </View>
+          )}
+          {stage === 'delivery' && (
             <View
-              pointerEvents={stage === 'opening' ? 'auto' : 'none'}
-              accessibilityElementsHidden={stage !== 'opening'}
-              importantForAccessibility={stage === 'opening' ? 'auto' : 'no-hide-descendants'}
-              aria-hidden={stage !== 'opening'}
               style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: 8,
-                opacity: stage === 'opening' ? 1 : 0,
+                gap: 18,
+                paddingTop: Math.max(24, Math.min(120, (height * 0.25 - 104) / fontScale)),
               }}
             >
-              {videoControl}
-              {animationControls}
+              <LinearGradient
+                pointerEvents="none"
+                colors={[shade(0), c.black, c.black]}
+                locations={[0, 0.07, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+              <CinemaText style={{ fontSize: 13.4, color: c.muted }}>
+                Confirm your name to open your invitation.
+              </CinemaText>
+              <CinemaField
+                label="Your name"
+                visibleLabel
+                underline
+                nativeID="invitation-name"
+                inputRef={input}
+                value={name}
+                onChangeText={(text) => {
+                  setName(text);
+                  setError('');
+                }}
+                error={error}
+                maxLength={80}
+                autoComplete="name"
+                autoCapitalize="words"
+                returnKeyType="go"
+                onSubmitEditing={confirm}
+              />
+              <CinemaButton solid label="Accept the Envelope" onPress={confirm} />
             </View>
-            {stage === 'revealed' && (
-              <View style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
+          )}
+          {(stage === 'opening' || stage === 'revealed') && (
+            <View testID="invitation-actions" style={{ gap: 18 }}>
+              {/* Keep the same measured footer throughout opening, including larger text. */}
+              <View style={{ alignItems: 'center' }}>{replayControl}</View>
+              <View
+                pointerEvents={stage === 'revealed' ? 'auto' : 'none'}
+                accessibilityElementsHidden={stage !== 'revealed'}
+                importantForAccessibility={stage === 'revealed' ? 'auto' : 'no-hide-descendants'}
+                aria-hidden={stage !== 'revealed'}
+                style={{ opacity: stage === 'revealed' ? 1 : 0 }}
+              >
                 <CinemaButton
-                  label="Replay invitation"
-                  onPress={replay}
-                  style={{
-                    alignSelf: 'center',
-                    borderWidth: 1,
-                    borderColor: c.border,
-                    borderRadius: 48,
-                    width: 48,
-                    paddingHorizontal: 0,
-                  }}
-                >
-                  <MotionIcon name="replay" />
-                </CinemaButton>
+                  solid
+                  label="Accept my invitation"
+                  disabled={stage !== 'revealed' || exiting}
+                  style={exiting ? { opacity: 1 } : undefined}
+                  onPress={accept}
+                />
               </View>
-            )}
-          </View>
-          <View
-            pointerEvents={stage === 'revealed' ? 'auto' : 'none'}
-            accessibilityElementsHidden={stage !== 'revealed'}
-            importantForAccessibility={stage === 'revealed' ? 'auto' : 'no-hide-descendants'}
-            aria-hidden={stage !== 'revealed'}
-            style={{ opacity: stage === 'revealed' ? 1 : 0 }}
+            </View>
+          )}
+          {!!notice && (
+            <CinemaText role="alert" style={{ fontSize: 13, marginTop: 16 }}>
+              {notice}
+            </CinemaText>
+          )}
+          <CinemaText
+            role="status"
+            accessibilityLiveRegion="polite"
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' }}
           >
-            <CinemaButton
-              solid
-              label="Accept my invitation"
-              disabled={stage !== 'revealed'}
-              onPress={onAccept}
-            />
-          </View>
-        </View>
-      )}
-      {!!notice && (
-        <CinemaText role="alert" style={{ fontSize: 13, marginTop: 16 }}>
-          {notice}
-        </CinemaText>
-      )}
-      <CinemaText
-        role="status"
-        accessibilityLiveRegion="polite"
-        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' }}
-      >
-        {announcement}
-      </CinemaText>
-    </CinemaScreen>
+            {announcement}
+          </CinemaText>
+        </CinemaScreen>
+      </Animated.View>
+    </View>
   );
 }

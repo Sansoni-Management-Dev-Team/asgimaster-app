@@ -6,6 +6,7 @@ import { useEvents } from '../events/store';
 import { eventLabels } from '../events/components';
 import { useHydrate, SavedState } from '../member/ui';
 import { useMember } from './store';
+import { useOnboarding } from '../onboarding/store';
 import {
   Card,
   Copy,
@@ -16,6 +17,7 @@ import {
   LessonRow,
   Metric,
   Section,
+  TextAction,
   cardStyle,
   type Go,
 } from './ui';
@@ -33,6 +35,7 @@ export function Dashboard({
     data: { member, goal },
   } = useMember();
   const d = getDashboard(member, goal);
+  const record = useOnboarding((s) => s.record);
   const { fontScale } = useWindowDimensions();
   const events = useEvents();
   useHydrate(events);
@@ -43,9 +46,10 @@ export function Dashboard({
     <>
       <Heading
         title="Today"
-        avatar={{
-          initials: member.initials,
-          label: `${member.firstName}'s profile and settings`,
+        profile={{
+          label: member.firstName
+            ? `${member.firstName}'s profile and settings`
+            : 'Your profile and settings',
           press: () => go('profile'),
         }}
       />
@@ -97,8 +101,8 @@ export function Dashboard({
               : 'Your learning access is still active.'}
           </Copy>
           <Hit onPress={() => go('membership')}>
-            <Copy size={12} style={{ color: theme.colors.teal }}>
-              Review membership ↗
+            <Copy size={12} style={{ color: theme.colors.accent }}>
+              Review membership
             </Copy>
           </Hit>
         </Card>
@@ -113,13 +117,10 @@ export function Dashboard({
             <Copy size={10} caps>
               Membership
             </Copy>
-            <Copy size={10} muted>
-              ›
-            </Copy>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Icon name={paused || payment ? 'lock' : 'check'} />
-            <Copy size={12} style={{ color: theme.colors.teal, fontWeight: '700', flex: 1 }}>
+            <Copy size={12} style={{ color: theme.colors.accent, fontWeight: '700', flex: 1 }}>
               {paused ? 'Limited access' : payment ? 'Payment due' : `${d.membership.name} active`}
             </Copy>
           </View>
@@ -136,13 +137,10 @@ export function Dashboard({
             <Copy size={10} caps>
               Your support
             </Copy>
-            <Copy size={10} muted>
-              ›
-            </Copy>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Icon name="chat" />
-            <Copy size={12} style={{ color: theme.colors.teal, fontWeight: '700', flex: 1 }}>
+            <Copy size={12} style={{ color: theme.colors.accent, fontWeight: '700', flex: 1 }}>
               Here to help
             </Copy>
           </View>
@@ -155,6 +153,38 @@ export function Dashboard({
           </Copy>
         </Hit>
       </View>
+      <Section title="Your direction">
+        <Card style={{ padding: 24, gap: 24 }}>
+          <View style={{ gap: 8 }}>
+            <Copy caps muted size={10}>
+              Your {goal.weeks === '52' ? '12-month' : `${goal.weeks}-week`} goal
+            </Copy>
+            <Copy size={22} style={{ lineHeight: 30, fontWeight: '700' }}>
+              {goal.name}
+            </Copy>
+          </View>
+          {[
+            ['Your challenge', record.answers.challenge],
+            ['Your growth', record.answers.skills],
+          ].map(([label, answer]) => (
+            <View
+              key={label}
+              style={{
+                gap: 8,
+                paddingTop: 20,
+                borderTopWidth: 1,
+                borderColor: theme.colors.border,
+              }}
+            >
+              <Copy caps muted size={10}>
+                {label}
+              </Copy>
+              <Copy numberOfLines={3}>{answer}</Copy>
+            </View>
+          ))}
+          <TextAction label="View my plan" onPress={() => go('plan')} />
+        </Card>
+      </Section>
       <View style={{ marginTop: 32 }}>
         <Copy
           size={24}
@@ -165,28 +195,16 @@ export function Dashboard({
           My day
         </Copy>
         <Copy size={12} muted style={{ marginBottom: 12 }}>
-          Your focus: {goal.name}
+          {d.complete.length || d.weeklyMinutes
+            ? `Your focus: ${goal.name}`
+            : 'Your first chapter starts here. Build momentum with one lesson.'}
         </Copy>
         <Hit
           onPress={next}
           style={[cardStyle, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}
         >
-          {fontScale < 1.5 && (
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: theme.colors.raised,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon name={d.next.kind === 'lesson' ? 'arrow' : 'check'} />
-            </View>
-          )}
           <View style={{ flex: 1 }}>
-            <Copy size={10} caps style={{ color: theme.colors.teal, marginBottom: 4 }}>
+            <Copy size={10} caps style={{ color: theme.colors.accent, marginBottom: 4 }}>
               Your next move
             </Copy>
             <Copy size={16} style={{ fontWeight: '700', lineHeight: 22.4 }}>
@@ -196,9 +214,6 @@ export function Dashboard({
               {d.next.detail}
             </Copy>
           </View>
-          <Copy size={20} muted>
-            ›
-          </Copy>
         </Hit>
       </View>
       {d.resume && (
@@ -228,7 +243,7 @@ export function Dashboard({
                 }}
               >
                 <Icon name="play" size={28} />
-                <Copy caps size={10} style={{ color: theme.colors.teal }}>
+                <Copy caps size={10} style={{ color: theme.colors.accent }}>
                   Master Class
                 </Copy>
               </View>
@@ -253,7 +268,7 @@ export function Dashboard({
                   style={{
                     height: 3,
                     width: `${Math.min(100, (member.positions[d.resume.id] / (d.resume.minutes * 60)) * 100)}%`,
-                    backgroundColor: theme.colors.teal,
+                    backgroundColor: theme.colors.accent,
                   }}
                 />
               </View>
@@ -277,8 +292,8 @@ export function Dashboard({
           />
           {registrationFor(events.data, event.id)?.status === 'registered' && isEventDay(event) && (
             <Hit onPress={() => go('event', event.id + '/ticket')}>
-              <Copy size={12} style={{ color: theme.colors.teal }}>
-                Today · {ticketLabel(event)} ↗
+              <Copy size={12} style={{ color: theme.colors.accent }}>
+                Today · {ticketLabel(event)}
               </Copy>
             </Hit>
           )}
@@ -296,7 +311,11 @@ export function Dashboard({
                 key={l.id}
                 lesson={l}
                 detail={
-                  l.tags.some((tag) => `${goal.name} ${goal.success}`.toLowerCase().includes(tag))
+                  l.tags.some((tag) =>
+                    `${goal.name} ${goal.success} ${goal.context ?? ''}`
+                      .toLowerCase()
+                      .includes(tag),
+                  )
                     ? 'For your current goal'
                     : 'Included in your programme'
                 }
@@ -330,7 +349,7 @@ export function Dashboard({
           <Icon name="check" />
           <Copy size={12}>This week’s actions</Copy>
         </View>
-        <Copy size={12}>{d.actionsDone} of 3 ›</Copy>
+        <Copy size={12}>{d.actionsDone} of 3</Copy>
       </Hit>
       {d.membership.ai && (
         <Hit
@@ -346,9 +365,6 @@ export function Dashboard({
               Work through your next step with AaronAI.
             </Copy>
           </View>
-          <Copy size={20} muted>
-            ›
-          </Copy>
         </Hit>
       )}
     </>

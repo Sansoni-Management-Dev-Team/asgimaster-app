@@ -55,7 +55,11 @@ export const fields = {
   skills: 'skills',
 } as const;
 type AnswerKey = (typeof fields)[Question] | 'role' | 'occupation';
-export type OnboardingRecord = { version: 1; answers: Partial<Record<AnswerKey, string>> };
+export type OnboardingRecord = {
+  version: 1;
+  name?: string;
+  answers: Partial<Record<AnswerKey, string>>;
+};
 export const emptyRecord = (): OnboardingRecord => ({ version: 1, answers: {} });
 export const isQuestion = (value: unknown): value is Question =>
   questions.some((step) => step === value);
@@ -127,7 +131,7 @@ export function answerQuestion(record: OnboardingRecord, step: Question, value: 
   const answers = { ...record.answers, [fields[step]]: (value as string).trim() };
   if (step === 'role' && !rangesFor(incomeTypeFor(value)).includes(answers.incomeRange ?? ''))
     delete answers.incomeRange;
-  return { record: { version: 1 as const, answers }, error: '' };
+  return { record: { ...record, answers }, error: '' };
 }
 
 // Preserve valid historical data while asking for missing current choices. Never infer a role.
@@ -144,6 +148,7 @@ export function sanitizeRecord(raw: unknown): OnboardingRecord {
   )
     return result;
   const a = raw.answers as Record<string, unknown>;
+  if ('name' in raw && validText(raw.name, 80)) result.name = raw.name.trim().replace(/\s+/g, ' ');
   if (validIntent(a.ownershipIntent)) result.answers.ownershipIntent = a.ownershipIntent as string;
   if (validText(a.industry, 120)) {
     result.answers.industry = a.industry.trim();

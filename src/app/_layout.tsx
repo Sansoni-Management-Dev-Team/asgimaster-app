@@ -20,6 +20,10 @@ export default function RootLayout() {
         <Stack.Screen name="sign-in" options={{ title: 'Sign in — Master App' }} />
         <Stack.Screen name="onboarding" options={{ title: 'Your onboarding — Master App' }} />
         <Stack.Screen name="home" options={{ title: 'Today — Master App' }} />
+        <Stack.Screen
+          name="offboarding"
+          options={{ title: 'Your membership options — Master App' }}
+        />
       </Stack>
       <StatusBar style="light" />
     </AppProviders>

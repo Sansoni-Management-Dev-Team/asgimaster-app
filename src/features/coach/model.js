@@ -1,4 +1,5 @@
 import { getDashboard, membershipFor, lessons } from '../home/model';
+import { cleanAcquisition, cleanUpdates, cleanSummary } from './acquisition';
 
 // Unlimited prompt count in the local prototype; access/readiness checks still apply.
 export const COACH_KEY = 'master-app.coach.v1';
@@ -104,8 +105,11 @@ export function resolveMessage(state, request, reply, member, mode = 'demo', now
     text: reply.text,
     lessonId: reply.lessonId || null,
     handoff: Boolean(reply.handoff),
+    updates: cleanUpdates(reply.updates),
+    summary: cleanSummary(reply.summary),
     createdAt: now.toISOString(),
   });
+  if (reply.acquisition && chat.acquisition) chat.acquisition = cleanAcquisition(reply.acquisition);
   chat.updatedAt = now.toISOString();
   return true;
 }
@@ -158,6 +162,10 @@ export function demoReply(question, member, goal) {
     return {
       text: "A person is the right next step for that. I can't change your membership, take payments, or contact your consultant for you.\n\nUse the handoff below to choose a team and review your request. Your conversation is only included if you choose to share it. This prototype doesn't send requests.",
       handoff: true,
+    };
+  if (!goal.name)
+    return {
+      text: 'Your direction is still taking shape. Start with one outcome you would like to work towards, then choose a small action you can take this week.\n\nYou can also set up your direction from Home to connect your goal with your learning. This is a sample coaching reply.',
     };
   if (/\b(week|schedule|routine|time|plan)\b/i.test(question))
     return {
@@ -246,16 +254,22 @@ export function loadCoach(target = storage(), now = new Date()) {
           } else {
             clean.lessonId = lessonIds.has(message.lessonId) ? message.lessonId : null;
             clean.handoff = message.handoff === true;
+            clean.updates = cleanUpdates(message.updates);
+            clean.summary = cleanSummary(message.summary);
           }
           return [clean];
         });
-      if (!messages.length) continue;
+      const acquisition = cleanAcquisition(chat.acquisition);
+      if (!messages.length && !acquisition) continue;
       state.conversations.push({
         id: chat.id,
-        title: String(chat.title || messages[0].text).slice(0, 64),
+        title: String(
+          chat.title || messages[0]?.text || acquisition?.title || 'Conversation',
+        ).slice(0, 64),
         createdAt: date(chat.createdAt),
         updatedAt: date(chat.updatedAt),
         messages,
+        ...(acquisition ? { acquisition } : {}),
       });
     }
     state.activeId = state.conversations.some((chat) => chat.id === raw.activeId)

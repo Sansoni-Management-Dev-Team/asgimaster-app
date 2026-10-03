@@ -9,7 +9,11 @@ export const theme = {
     text: tokens['color-text'],
     muted: tokens['color-text-muted'],
     subtle: tokens['color-text-subtle'],
-    teal: tokens['color-teal'],
+    accent: tokens['color-accent'],
+    accentPressed: tokens['color-accent-pressed'],
+    onAccent: tokens['color-on-accent'],
+    focus: tokens['color-focus'],
+    selection: tokens['color-selection'],
     black: tokens['color-black'],
     white: tokens['color-white'],
     surface: tokens['color-surface'],
@@ -29,6 +33,7 @@ export const theme = {
     xxl: rem(tokens['space-7']),
   },
   radius: {
+    control: rem(tokens['radius-control']),
     md: rem(tokens['radius-md']),
     lg: rem(tokens['radius-lg']),
     pill: Number.parseFloat(tokens['radius-pill']),
@@ -49,6 +54,7 @@ export const theme = {
   type: {
     small: rem(tokens['text-sm']),
     body: rem(tokens['text-md']),
+    screenTitle: rem(tokens['text-screen-title']),
     title: rem(tokens['text-2xl'].match(/clamp\(([^,]+)/)?.[1] ?? '2rem'),
     tracking: Number.parseFloat(tokens['tracking-headline']),
   },
