@@ -1,6 +1,6 @@
 # HLDD 04 — Member app
 
-Status: **Draft v1** · Owner: Tom (client, hooks) / Shan (screens) · Updated: 3 Oct 2026
+Status: **Draft v2** (Mark's 5 Oct notes) · Owner: Tom (client, hooks) / Shan (screens) · Updated: 5 Oct 2026
 
 ## 1. Purpose and scope
 
@@ -22,6 +22,8 @@ The Expo app moves from device-local demo data to the real API. This doc covers 
 ## 3. Approach
 
 Each module is **rebuilt against the API**, using the current prototype as the visual and behavioural reference. Kept as-is: the design tokens and shared components (`AppButton`, `AppField`, `AppScreen`, `AppText`, `MemberHeader`), the Concept 2 onboarding visuals, and Shan's AaronAI chat / plan UI. Rebuilt: every store, model and fixture behind them.
+
+**Phase 1 — one honest session (D-26):** sign-in, onboarding (answers saved to the account), Home, Profile with sign out, Library and player with progress, Support via Intercom, the enquiry form. Events, AaronAI, offboarding, push and notification preferences follow in Phase 1.5; their tabs and entry points are hidden in Phase 1 builds through remote config, so nothing leads to a dead end (ENT-03).
 
 **Deleted in sprint 1** (once Mark confirms, D-11): event registration, cancellation, QR / wallet / offline passes, check-in and attendance; locked "Not included" and "Explore all" library views; demo settings and presets; simulated support replies and the local support inbox; AaronAI demo scenarios; sample fixtures. Weekly actions, notes and the plan editor wait on D-10.
 
@@ -47,7 +49,7 @@ Each module is **rebuilt against the API**, using the current prototype as the v
 
 **Server state.** TanStack Query hooks per module (`src/features/<module>/api.ts`). Zustand only for session and UI state (as AGENTS.md says).
 
-**Device cache (CON-01, CON-11).** The query cache is persisted to MMKV in a namespace keyed by member ID, wiped on sign-out. Long cache lifetimes; a failed refetch never clears data — the app keeps showing the last good result, without a staleness warning (CON-02). Only actions that need the live API (AaronAI chat, sending an enquiry) show a "try again" state.
+**Device cache (CON-01, CON-11).** The query cache is persisted to MMKV in a namespace keyed by member ID, wiped on sign-out. Long cache lifetimes; a failed refetch never clears data — the app keeps showing the last good result, without a staleness warning (CON-02). It's trusted for 7 days without a successful refresh; after that the app falls back to the wind-down view — library kept, events and coaching hidden — so nobody is locked out (D-37). Only actions that need the live API (AaronAI chat, sending an enquiry) show a "try again" state.
 
 **Writes.** Mutations carry a client-generated idempotency key. Progress is sent throttled (on pause, background, and every ~15 s while playing). Paused mutations are persisted and resumed when the network returns, so progress and enquiries survive going offline.
 

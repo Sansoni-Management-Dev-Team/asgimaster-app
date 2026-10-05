@@ -1,6 +1,6 @@
 # HLDD 01 — Platform, API and admin
 
-Status: **Draft v1** · Owner: Tom · Updated: 3 Oct 2026
+Status: **Draft v2** (Mark's 5 Oct notes) · Owner: Tom · Updated: 5 Oct 2026
 
 ## 1. Purpose and scope
 
@@ -19,6 +19,9 @@ Not covered here: how access is resolved (02), the specifics of each third-party
 | Push delivery | NOT-01 |
 | Client data | DAT-02 |
 | Compliance | CMP-02 (reviewer account), CMP-04 |
+| Restore rehearsal, test members, gauges | PLT-07, PLT-08, PLT-09 |
+
+**Phase 1:** hosting and the restore rehearsal, API, auth, email, `/admin` (roster, invites, staff sign-in, manual link / unlink, access rules, corrections, enquiries, health), progress and enquiries in our DB, Maxio sync. **Phase 1.5:** HubSpot writes, push, client read access (DAT-02), bulk identity review, no-HubSpot report.
 
 ## 3. Architecture
 
@@ -53,8 +56,8 @@ Core tables (entitlement tables are defined in 02):
 | Table | Holds |
 | --- | --- |
 | `members` | Our member ID (the key everywhere), name, status |
-| `member_identities` | Emails and upstream IDs (HubSpot contact, Maxio customer, Klaviyo profile) per member |
-| `cohorts`, `invites` | Cohort, invite status, sent / accepted timestamps, delivery failures |
+| `member_identities`, `identity_assertions` | Emails and upstream IDs (HubSpot contact, Maxio customer); derived links, and append-only human assertions (02) |
+| `invites` | Invite status, sent / accepted timestamps, delivery failures. The roster itself is derived from Maxio (02) |
 | Better Auth tables | Users, sessions, verification tokens, staff roles |
 | `onboarding_answers` | Seven answers + invitation name, versioned |
 | `progress` | Member × video: furthest position, last watched, first completed at (≥ 90%) |
@@ -75,11 +78,14 @@ Core tables (entitlement tables are defined in 02):
 
 | Page | Does |
 | --- | --- |
-| Cohorts | Upload CSV → preview identity matches (02) → confirm → send invites; resend; see pending / accepted / failed |
+| Roster | Live view of in-scope Maxio members with HubSpot refs; select and invite; resend; pending / accepted / failed. CSV only to seed refs and merges |
 | Members | Search; detail shows identities, resolved access and its source, invites, recent activity, enquiries |
-| Identity | Link / unlink upstream records when the automatic match is wrong (ADM-04) |
-| Access rules | Map purchases to capabilities (ADM-09, see 02) |
-| Corrections | Individual access corrections with reason and expiry (ENT-06) |
+| Identity | Link / unlink records by hand, stored as assertions (ADM-04). Bulk review in Phase 1.5 (ADM-10) |
+| Access rules | Versioned rules; who / when / why, and a preview of members affected before saving (ADM-09) — the substitute for staging |
+| Corrections | Per member; mandatory reason and expiry (default 90 days); append-only; expiring-soon list (ENT-06; who builds it is D-36) |
+| Enquiries | Phase 1 enquiries, each also emailed to a CX inbox (ENQ-04) |
+| Health | Canary pull, oldest-payload age, held resolve runs (PLT-09) |
+| No HubSpot record | Standing report (ADM-11, Phase 1.5) |
 | Delivery | Failed outbound writes from the outbox, with retry |
 | Audit | Staff action log |
 
@@ -93,17 +99,17 @@ Core tables (entitlement tables are defined in 02):
 
 **Secrets.** SSM Parameter Store SecureString (KMS). Nothing third-party in the app (CON-03).
 
-**Observability (CON-10).** Structured JSON logs to CloudWatch (30-day retention), Sentry for API and app errors with PII scrubbing, CloudWatch alarms on DLQ depth, 5xx rate, Lambda errors and RDS storage / CPU, emailed to MLAI and the client.
+**Observability (CON-10).** Structured JSON logs to CloudWatch (30-day retention), Sentry for API and app errors with PII scrubbing, CloudWatch alarms on DLQ depth, 5xx rate, Lambda errors and RDS storage / CPU, emailed to MLAI and the client. Separately, data-health gauges (CON-23, PLT-09): a synthetic access pull on a test member, the age of the oldest payload, and held resolve runs — shown in `/admin` and emailed. A brake trip is the system working, so it never reaches crash reporting.
 
 **Domains.** `api.<client-domain>` with ACM certificate; `/admin` on the same host. The API also serves the iOS / Android app-link files so magic links open the app (needs DNS, DEP-25).
 
-**IaC and CI/CD.** Terraform in `infra/`, state in S3 with native lockfile. GitHub Actions assumes a deploy role in the client account via OIDC (no long-lived keys). PRs: lint, test, `terraform plan`. `main`: build → run migrations → deploy, with manual approval on apply.
+**IaC and CI/CD.** Terraform in `infra/`, state in S3 with native lockfile. GitHub Actions assumes a deploy role in the client account via OIDC (no long-lived keys). PRs: lint, unit tests, the client's conformance suite (pinned version pulled from their repo, ENT-09), `terraform plan`. A failing conformance scenario blocks deploy. Resolver changes also produce a whole-base access diff against current results for review before deploy (CON-25, proposed). `main`: build → run migrations → deploy, with manual approval on apply.
 
 **Repo.** Monorepo in `master-app`: the Expo app stays at the root for now; `api/`, `infra/` and `packages/contracts` (shared zod schemas and types for API requests and responses) as npm workspaces.
 
 ## 5. Key flows
 
-1. **Invite.** Staff uploads a cohort CSV → matches previewed → confirm → invites created → SES sends link + code → status tracked in `/admin`.
+1. **Invite.** Staff pick members from the Maxio-derived roster → invites created → SES sends link + code → status tracked in `/admin`.
 2. **First sign-in.** Member taps the link (opens the app) or types the code → Better Auth verifies → invite gate passes → session token → app calls `/v1/me` for profile and access (02).
 3. **Returning.** Session continues; expired → sign in again; sign-out revokes.
 4. **Member write.** App sends progress or an enquiry with an idempotency key → API stores it (and an outbox row if it goes upstream) → responds immediately → `worker` delivers.
@@ -114,7 +120,7 @@ Core tables (entitlement tables are defined in 02):
 
 - **Scale.** 341 members at launch, weekly cohorts; low traffic. Defaults for Lambda and a small RDS instance are ample.
 - **Availability.** Single region, single-AZ database. The app tolerates API outages by showing its last good data (CON-01, 04).
-- **Backups.** RDS automated backups with point-in-time recovery (proposed 14-day retention), manual snapshot before every migration, restore runbook rehearsed once before launch.
+- **Backups.** RDS automated backups with point-in-time recovery (proposed 14-day retention), manual snapshot before every migration, and a restore rehearsed from a real production backup into an empty database before the first invite (PLT-07).
 - **Security.** TLS everywhere; DB private; least-privilege IAM per function; secrets in Parameter Store; staff actions audited; sign-in rate-limited.
 - **Residency.** Member data at rest stays in `ap-southeast-2`. Data that leaves: Expo push (content-free payloads), Sentry (scrubbed errors), the client's existing vendors (HubSpot, Intercom), AaronAI inference (03). State this in the privacy policy.
 - **Cost.** Expected well under A$100/month at launch scale (RDS, NAT instance, Lambda, API Gateway, SQS, SES, CloudWatch). Verify with the AWS pricing calculator once the region is confirmed.
@@ -128,9 +134,14 @@ Core tables (entitlement tables are defined in 02):
 | CON-08 every write safe to retry | Idempotency key per write; unique constraints; upstream idempotency where supported |
 | CON-09 separate environments | **Replaced** by a single production deployment with backups; local dev and third-party sandboxes instead |
 | CON-10 error reporting and logs | Sentry + CloudWatch + alarms |
+| CON-14 backups | Point-in-time recovery, snapshot before every migration, restore rehearsed before cohort one |
+| CON-23 gauges | Canary pull, oldest-payload age, held runs |
 | CON-13 room for bookings / Project Acquire | Member-keyed tables; bookings would be their own object table, not counters |
 
 ## 8. Decisions
+
+**Agreed with Mark (5 Oct 2026)**
+- `/admin` (D-03), the D-01 conditions, the Phase 1 slice (D-26), dropping staging in favour of preview-before-save.
 
 **Made (3 Oct 2026)**
 - AWS, client's account (D-27); single production deployment with backups.
@@ -145,13 +156,13 @@ Core tables (entitlement tables are defined in 02):
 - Region / residency — confirm `ap-southeast-2` with the client.
 - RDS Multi-AZ — off by default; turn on if the client wants faster recovery.
 - Backup retention — 14 days proposed.
-- Testing without staging — TestFlight builds point at production; test members need a flag that suppresses HubSpot writes, or writes go to a HubSpot test portal.
+- Testing without staging — proposed (D-34): test members are synthetic people with no HubSpot ID, every HubSpot write is keyed on a linked contact ID (CON-24), and one CX-owned real test contact exercises the write path.
 - App location — keep the Expo app at the repo root, or move it to `apps/mobile` in one coordinated PR with Shan.
 - D-19 — account deletion route.
 
 ## 9. Risks
 
-- **No staging.** A bad migration or deploy hits members directly. Mitigated by snapshot-before-migrate, manual approval on deploy, and a rehearsed restore.
+- **No staging.** A bad migration or deploy hits members directly. Mitigated by preview-before-save for rule changes, a whole-base access diff for resolver changes, snapshot-before-migrate, manual approval on deploy, and a rehearsed restore.
 - **AWS access lead time.** Nothing deploys until the client grants access (DEP-18) and DNS (DEP-25); SES production access takes a day or so.
 - **NAT instance.** Single small instance for outbound calls; auto-recovers, and writes queue meanwhile.
 
