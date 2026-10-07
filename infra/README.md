@@ -2,6 +2,8 @@
 
 Terraform for the AWS resources that run the API. This is a minimal first version with one environment. It has not been applied to any AWS account yet.
 
+The diagram and the list of planned resources are in [`docs/architecture.md`](../docs/architecture.md).
+
 ## What it creates
 
 Every resource has a `Project` tag. The Terraform also creates an AWS resource group that lists everything with that tag.

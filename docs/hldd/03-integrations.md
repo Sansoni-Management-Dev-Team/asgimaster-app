@@ -4,7 +4,7 @@ Status: **Draft v2** (Mark's 5 Oct notes) · Owner: Tom · Updated: 5 Oct 2026
 
 ## 1. Purpose and scope
 
-Every external system the API talks to: direction, trigger, credentials, data, and what happens when it's down. All calls go through our API (CON-03); outbound writes go through the outbox and worker from 01 (CON-07, CON-08). Email (SES) and push (Expo) are covered in 01.
+Every external system the API talks to: direction, trigger, credentials, data, and what happens when it's down. All calls go through our API (CON-03); outbound writes go through the outbox and its poller from 01 (CON-07, CON-08). Email (SES) and push (Expo) are covered in 01.
 
 **Phasing (D-26).** Phase 1: HubSpot reads, Maxio, Intercom messenger, Mux playback from a seeded catalogue, enquiries kept in our DB and emailed to a CX inbox. Phase 1.5: HubSpot writes (activity, enquiries), Intercom → HubSpot logging, catalogue editing and chapters in `/admin`, events, AaronAI, engagement data.
 
@@ -89,7 +89,7 @@ Every external system the API talks to: direction, trigger, credentials, data, a
 
 ## 9. AaronAI (Phase 1.5, D-33)
 
-- **Proxy via our API.** The app calls `/v1/aaronai/*`; our API checks the `aaronai` capability, then calls the AaronAI backend with a service credential and our member ID, and streams the reply back (a Lambda function URL with response streaming for this route if needed).
+- **Proxy via our API.** The app calls `/v1/aaronai/*`; our API checks the `aaronai` capability, then calls the AaronAI backend with a service credential and our member ID, and streams the reply back through the load balancer.
 - **History and plan state (AAI-03).** Stored by the AaronAI backend against our member ID if it supports that; otherwise in our DB. Decided after reviewing the repo (D-12).
 - **Limits.** Per-member throttling in our API.
 - **Residency.** Inference location is AaronAI's own stack (earlier notes: AWS Bedrock, US, zero retention); state it in the privacy policy.

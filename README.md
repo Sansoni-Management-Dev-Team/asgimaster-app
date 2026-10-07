@@ -2,12 +2,12 @@
 
 This repository holds the Sansoni member app. It has three parts.
 
-| Folder        | What it is                                                      |
-| ------------- | --------------------------------------------------------------- |
-| `apps/mobile` | The iOS and Android app, built with Expo and React Native.      |
-| `apps/api`    | The backend, a TypeScript Hono server that runs in a container. |
-| `infra`       | Terraform for the AWS resources the backend runs on.            |
-| `docs`        | Product requirements. Treat this folder as the source of truth. |
+| Folder        | What it is                                                          |
+| ------------- | ------------------------------------------------------------------- |
+| `apps/mobile` | The iOS and Android app, built with Expo and React Native.          |
+| `apps/api`    | The backend, a TypeScript Hono server that runs in a container.     |
+| `infra`       | Terraform for the AWS resources the backend runs on.                |
+| `docs`        | Product requirements and design. Start with `docs/architecture.md`. |
 
 The apps are npm workspaces, so there is one `package-lock.json` at the root.
 

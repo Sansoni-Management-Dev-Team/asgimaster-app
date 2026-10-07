@@ -1,6 +1,8 @@
 # HLDD 01 — Platform, API and admin
 
-Status: **Draft v2** (Mark's 5 Oct notes) · Owner: Tom · Updated: 5 Oct 2026
+Status: **Draft v3** (CTO meeting 8 Oct) · Owner: Tom · Updated: 8 Oct 2026
+
+**Changes in v3.** Sansoni's CTO asked for a containerised deployment with no Redis and no message queue, built with Terraform in this monorepo. The API now runs on ECS Fargate instead of Lambda. Outbound writes are delivered by a poller in the API instead of SQS and a worker Lambda. Scheduled jobs run as ECS tasks. The NAT instance is gone because the tasks run in public subnets.
 
 ## 1. Purpose and scope
 
@@ -25,31 +27,23 @@ Not covered here: how access is resolved (02), the specifics of each third-party
 
 ## 3. Architecture
 
-```
-Member app (Expo) ─┐                         ┌─ /v1/*        member API
-Staff browser ─────┼─ HTTPS ─ API Gateway ── Lambda "api" (Hono) ─┼─ /admin/*     server-rendered admin
-Maxio/Intercom/Mux ┘   (HTTP API, custom     │                    └─ /webhooks/*  inbound webhooks
-   webhooks             domain)              │
-                                             ├─ writes intent ──▶ outbox table + SQS ──▶ Lambda "worker"
-                                             │                                            ├─▶ HubSpot / Intercom
-                                             │                                            └─▶ Expo Push
-EventBridge Scheduler ──────────────────────▶ Lambda "jobs" (same codebase): nightly HubSpot activity, access refresh, cleanup
-                                             │
-                          RDS PostgreSQL (private subnets, encrypted, PITR backups)
-                                             └─ read-only role on ops.* views ──▶ client ops tooling
-Also: SES (email) · SSM Parameter Store (secrets) · CloudWatch Logs + alarms · Sentry
-Outbound internet from the VPC: NAT instance (fck-nat), not a NAT gateway
-```
+The diagram and the full AWS resource list are in [`../architecture.md`](../architecture.md).
+
+One Hono API runs as a container on ECS Fargate behind an application load balancer. It serves the member API on `/v1/*`, the staff admin on `/admin/*` and inbound webhooks on `/webhooks/*`. It stores everything in RDS PostgreSQL. Scheduled jobs run as separate ECS tasks from the same image.
 
 ## 4. Components
 
 **Hosting.** Client's AWS account, `ap-southeast-2` (Sydney, assumed for AU residency — confirm). A **single production deployment** with backups; no staging or per-PR environments in AWS for V1. Development runs locally (Postgres in Docker, Hono dev server, Expo dev client) against third-party sandboxes where they exist.
 
-**Compute.** One Hono codebase in `api/`, deployed as three Lambda functions sharing code: `api` (behind API Gateway HTTP API), `worker` (SQS consumer for outbound writes), `jobs` (EventBridge Scheduler targets). If AaronAI replies need streaming, add a Lambda function URL with response streaming for that route (see 03).
+**Compute.** One Hono codebase in `apps/api`, built into one container image and stored in ECR. The image runs in two ways:
+- `api`: an ECS Fargate service behind an application load balancer. It also runs the outbox poller (see Outbound writes).
+- `jobs`: EventBridge Scheduler starts a one-off ECS task from the same image with a job command.
 
-**Networking.** Lambdas run in private subnets to reach RDS. Outbound calls (HubSpot, Intercom, Mux, Expo, AaronAI) go through a NAT instance (fck-nat on a t4g.nano in an auto-recovering ASG) instead of a ~$45/month NAT gateway. S3 via the free gateway endpoint. If the NAT instance is briefly down, outbound writes wait in the queue (CON-07).
+The load balancer can stream responses, so AaronAI replies need no special route (see 03).
 
-**Database.** RDS PostgreSQL, small Graviton instance, single-AZ to start, encrypted (KMS), deletion protection on. Drizzle for schema and SQL migrations, run as a deploy step.
+**Networking.** The load balancer and the ECS tasks run in public subnets. Each task has a public IP address, so outbound calls (HubSpot, Intercom, Mux, Expo, AaronAI) go straight out through the internet gateway and no NAT is needed. Security groups only let traffic reach the tasks from the load balancer. RDS is in private subnets with no route to the internet and only accepts connections from the tasks.
+
+**Database.** RDS PostgreSQL 18, small Graviton instance, single-AZ to start, encrypted (KMS), deletion protection on. Drizzle for schema and SQL migrations, run as a deploy step.
 
 Core tables (entitlement tables are defined in 02):
 
@@ -74,7 +68,7 @@ Core tables (entitlement tables are defined in 02):
 
 **Email.** Amazon SES in the client's account: verified client domain (SPF, DKIM, DMARC), production access requested early, templates for invite and sign-in. Bounces and complaints via SNS mark the invite as failed in `/admin`.
 
-**`/admin`.** Server-rendered Hono JSX + htmx on the same Lambda. Staff role required, CSRF protection, every mutation written to `audit_log`.
+**`/admin`.** Server-rendered Hono JSX + htmx in the same API service. Staff role required, CSRF protection, every mutation written to `audit_log`.
 
 | Page | Does |
 | --- | --- |
@@ -89,48 +83,48 @@ Core tables (entitlement tables are defined in 02):
 | Delivery | Failed outbound writes from the outbox, with retry |
 | Audit | Staff action log |
 
-**Outbound writes (CON-07, CON-08).** The API writes the member-facing record and an `outbox` row in one transaction, then enqueues to SQS. `worker` delivers with the row's idempotency key, retries with backoff, and moves to a DLQ after a fixed number of attempts; failures surface on the Delivery page. Screens never wait on a third party.
+**Outbound writes (CON-07, CON-08).** The API writes the member-facing record and an `outbox` row in one transaction. A poller in the API process claims due rows with `SELECT ... FOR UPDATE SKIP LOCKED`, so two tasks never send the same row. It delivers with the row's idempotency key, retries with backoff, and marks the row failed after a fixed number of attempts. Failures surface on the Delivery page. There is no message queue, as the CTO asked. Screens never wait on a third party.
 
-**Jobs.** EventBridge Scheduler → `jobs`: nightly member activity to HubSpot (DAT-01), access refresh (02), push receipt checks and invalid-token pruning, expired-token cleanup.
+**Jobs.** EventBridge Scheduler starts the `jobs` ECS task: nightly member activity to HubSpot (DAT-01), access refresh (02), push receipt checks and invalid-token pruning, expired-token cleanup.
 
-**Push.** The app registers Expo push tokens; `worker` sends via `expo-server-sdk`. Payloads carry no member data (title, short body, deep link only).
+**Push.** The app registers Expo push tokens; the outbox poller sends via `expo-server-sdk`. Payloads carry no member data (title, short body, deep link only).
 
 **Client read access (D-05).** A read-only Postgres role with `SELECT` on documented `ops.*` views (members, identities, access, progress, enquiries) — views, not raw tables, so internals can change. Schema doc generated from Drizzle into `docs/`. Connection path still open (see §8).
 
-**Secrets.** SSM Parameter Store SecureString (KMS). Nothing third-party in the app (CON-03).
+**Secrets.** Third-party credentials in SSM Parameter Store SecureString (KMS). RDS manages the database password in Secrets Manager. ECS passes both to the container when it starts. Nothing third-party in the app (CON-03).
 
-**Observability (CON-10).** Structured JSON logs to CloudWatch (30-day retention), Sentry for API and app errors with PII scrubbing, CloudWatch alarms on DLQ depth, 5xx rate, Lambda errors and RDS storage / CPU, emailed to MLAI and the client. Separately, data-health gauges (CON-23, PLT-09): a synthetic access pull on a test member, the age of the oldest payload, and held resolve runs — shown in `/admin` and emailed. A brake trip is the system working, so it never reaches crash reporting.
+**Observability (CON-10).** Structured JSON logs to CloudWatch (30-day retention), Sentry for API and app errors with PII scrubbing, CloudWatch alarms on failed outbox rows, 5xx rate, ECS task restarts and RDS storage / CPU, emailed to MLAI and the client. Separately, data-health gauges (CON-23, PLT-09): a synthetic access pull on a test member, the age of the oldest payload, and held resolve runs — shown in `/admin` and emailed. A brake trip is the system working, so it never reaches crash reporting.
 
 **Domains.** `api.<client-domain>` with ACM certificate; `/admin` on the same host. The API also serves the iOS / Android app-link files so magic links open the app (needs DNS, DEP-25).
 
-**IaC and CI/CD.** Terraform in `infra/`, state in S3 with native lockfile. GitHub Actions assumes a deploy role in the client account via OIDC (no long-lived keys). PRs: lint, unit tests, the client's conformance suite (pinned version pulled from their repo, ENT-09), `terraform plan`. A failing conformance scenario blocks deploy. Resolver changes also produce a whole-base access diff against current results for review before deploy (CON-25, proposed). `main`: build → run migrations → deploy, with manual approval on apply.
+**IaC and CI/CD.** Terraform in `infra/`, state in S3 with native lockfile. Today CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests, an API image build and `terraform validate`, and the deploy workflow is a stub. The rest of this paragraph is the target. GitHub Actions assumes a deploy role in the client account via OIDC (no long-lived keys). PRs: lint, unit tests, the client's conformance suite (pinned version pulled from their repo, ENT-09), `terraform plan`. A failing conformance scenario blocks deploy. Resolver changes also produce a whole-base access diff against current results for review before deploy (CON-25, proposed). `main`: build → run migrations → deploy, with manual approval on apply.
 
-**Repo.** Monorepo in `master-app`: the Expo app stays at the root for now; `api/`, `infra/` and `packages/contracts` (shared zod schemas and types for API requests and responses) as npm workspaces.
+**Repo.** npm workspaces monorepo in `master-app`, moving to Sansoni's GitHub organisation. `apps/mobile` holds the Expo app, `apps/api` the API and `infra/` the Terraform. `packages/contracts` (shared zod schemas and types for API requests and responses) is planned but not created yet.
 
 ## 5. Key flows
 
 1. **Invite.** Staff pick members from the Maxio-derived roster → invites created → SES sends link + code → status tracked in `/admin`.
 2. **First sign-in.** Member taps the link (opens the app) or types the code → Better Auth verifies → invite gate passes → session token → app calls `/v1/me` for profile and access (02).
 3. **Returning.** Session continues; expired → sign in again; sign-out revokes.
-4. **Member write.** App sends progress or an enquiry with an idempotency key → API stores it (and an outbox row if it goes upstream) → responds immediately → `worker` delivers.
+4. **Member write.** App sends progress or an enquiry with an idempotency key → API stores it (and an outbox row if it goes upstream) → responds immediately → the outbox poller delivers.
 5. **Nightly.** `jobs` aggregates activity → outbox → HubSpot.
 6. **Staff change.** Identity fix or access correction in `/admin` → written with reason to `audit_log`.
 
 ## 6. Non-functional requirements
 
-- **Scale.** 341 members at launch, weekly cohorts; low traffic. Defaults for Lambda and a small RDS instance are ample.
+- **Scale.** 341 members at launch, weekly cohorts; low traffic. One small Fargate task and a small RDS instance are ample.
 - **Availability.** Single region, single-AZ database. The app tolerates API outages by showing its last good data (CON-01, 04).
-- **Backups.** RDS automated backups with point-in-time recovery (proposed 14-day retention), manual snapshot before every migration, and a restore rehearsed from a real production backup into an empty database before the first invite (PLT-07).
+- **Backups.** RDS automated backups with point-in-time recovery (proposed 14-day retention; the Terraform sets 7 for now), manual snapshot before every migration, and a restore rehearsed from a real production backup into an empty database before the first invite (PLT-07).
 - **Security.** TLS everywhere; DB private; least-privilege IAM per function; secrets in Parameter Store; staff actions audited; sign-in rate-limited.
 - **Residency.** Member data at rest stays in `ap-southeast-2`. Data that leaves: Expo push (content-free payloads), Sentry (scrubbed errors), the client's existing vendors (HubSpot, Intercom), AaronAI inference (03). State this in the privacy policy.
-- **Cost.** Expected well under A$100/month at launch scale (RDS, NAT instance, Lambda, API Gateway, SQS, SES, CloudWatch). Verify with the AWS pricing calculator once the region is confirmed.
+- **Cost.** Expected well under A$100/month at launch scale (RDS, load balancer, Fargate, public IPv4 addresses, SES, CloudWatch). Verify with the AWS pricing calculator once the region is confirmed.
 
 ## 7. Constraints
 
 | Constraint | How it's met |
 | --- | --- |
 | CON-03 app talks only to our API | All third-party calls and secrets live in the API |
-| CON-07 writes never block a screen | Outbox + SQS + worker |
+| CON-07 writes never block a screen | Outbox table + poller in the API |
 | CON-08 every write safe to retry | Idempotency key per write; unique constraints; upstream idempotency where supported |
 | CON-09 separate environments | **Replaced** by a single production deployment with backups; local dev and third-party sandboxes instead |
 | CON-10 error reporting and logs | Sentry + CloudWatch + alarms |
@@ -143,9 +137,16 @@ Core tables (entitlement tables are defined in 02):
 **Agreed with Mark (5 Oct 2026)**
 - `/admin` (D-03), the D-01 conditions, the Phase 1 slice (D-26), dropping staging in favour of preview-before-save.
 
+**Made with Sansoni's CTO (8 Oct 2026)**
+- Containerised deployment on ECS Fargate, replacing Lambda.
+- No Redis and no message queue. The outbox poller replaces SQS and the worker Lambda.
+- Terraform for every resource, in this monorepo, with `apps/mobile`, `apps/api` and `infra/`.
+- RDS PostgreSQL kept as small as possible. PostgreSQL 18.
+- The repository moves to Sansoni's GitHub. Tom and Sam have admin access until handover.
+
 **Made (3 Oct 2026)**
 - AWS, client's account (D-27); single production deployment with backups.
-- Lambda + Hono; RDS PostgreSQL; Drizzle.
+- Hono; RDS PostgreSQL; Drizzle. (Lambda replaced on 8 Oct.)
 - Better Auth, magic link + email code for members, admin roles for staff (D-15).
 - `/admin` server-rendered in Hono (JSX + htmx) on the same API (D-03, to confirm with Mark).
 - SES for email (D-28); Expo Push Service.
@@ -157,14 +158,13 @@ Core tables (entitlement tables are defined in 02):
 - RDS Multi-AZ — off by default; turn on if the client wants faster recovery.
 - Backup retention — 14 days proposed.
 - Testing without staging — proposed (D-34): test members are synthetic people with no HubSpot ID, every HubSpot write is keyed on a linked contact ID (CON-24), and one CX-owned real test contact exercises the write path.
-- App location — keep the Expo app at the repo root, or move it to `apps/mobile` in one coordinated PR with Shan.
 - D-19 — account deletion route.
 
 ## 9. Risks
 
 - **No staging.** A bad migration or deploy hits members directly. Mitigated by preview-before-save for rule changes, a whole-base access diff for resolver changes, snapshot-before-migrate, manual approval on deploy, and a rehearsed restore.
 - **AWS access lead time.** Nothing deploys until the client grants access (DEP-18) and DNS (DEP-25); SES production access takes a day or so.
-- **NAT instance.** Single small instance for outbound calls; auto-recovers, and writes queue meanwhile.
+- **Tasks in public subnets.** Each task has a public IP address. Security groups only allow traffic from the load balancer, and nothing on the task listens on other ports.
 
 ## 10. Out of scope
 

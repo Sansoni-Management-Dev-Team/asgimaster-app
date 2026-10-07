@@ -115,7 +115,6 @@ Each module is **rebuilt against the API**, using the current prototype as the v
 
 **Open**
 - D-09 offboarding paths · D-10 Home extras · D-13 AaronAI name · D-20 card details · D-21 onboarding answers · D-26 V1 vs Phase 1.
-- Keep the app at the repo root or move to `apps/mobile` (01).
 
 ## 10. Out of scope
 

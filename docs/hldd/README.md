@@ -21,7 +21,7 @@ Read in order: each builds on the one before.
 ## Decided (3 Oct 2026)
 
 - **Hosting:** AWS, in the client's own account (D-27); a single production deployment with backups. Region assumed `ap-southeast-2` pending a residency confirmation.
-- **API:** one Hono app on Lambda, RDS Postgres, Better Auth, `/admin` server-rendered on the same API, Terraform, monorepo (01).
+- **API:** one Hono app in a container on ECS Fargate (changed from Lambda on 8 Oct), RDS Postgres, Better Auth, `/admin` server-rendered on the same API, Terraform, monorepo (01). No Redis and no message queue.
 - **Access:** agreed with Mark 5 Oct (D-01, five conditions). Maxio says who is a member, HubSpot who they are; login ↔ member links are ours, stored as assertions; ambiguous matches never auto-merge. Versioned rules with preview-before-save, expiring corrections, resolve-time checks and a removal brake; the client's conformance suite runs in our CI (02).
 - **Integrations:** two app-owned HubSpot contact properties; enquiries as HubSpot form submissions; Intercom native SDK; catalogue in our DB with signed Mux playback; one calendar feed per membership; AaronAI proxied through our API (03).
 - **App:** modules rebuilt against the API; persisted per-member cache; out-of-scope prototype features deleted in sprint 1 (04).
