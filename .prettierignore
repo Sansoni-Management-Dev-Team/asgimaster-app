@@ -1,2 +1,5 @@
 # The standalone prototype retains its original web formatting.
-prototypes/member-web/
+apps/mobile/prototypes/member-web/
+
+# Downloaded Terraform providers.
+infra/.terraform/

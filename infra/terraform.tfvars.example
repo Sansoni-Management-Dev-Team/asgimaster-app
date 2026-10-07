@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars.
+image_tag = "replace-with-git-sha"
