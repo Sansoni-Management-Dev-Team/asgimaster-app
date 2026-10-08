@@ -1,0 +1,6 @@
+**/node_modules
+**/dist
+.git
+infra
+apps/mobile/*
+!apps/mobile/package.json
