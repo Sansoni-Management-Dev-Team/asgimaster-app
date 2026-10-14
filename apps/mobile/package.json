@@ -9,6 +9,7 @@
     "expo": "~57.0.19",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.17",
+    "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.1",
     "expo-font": "~57.0.3",
     "expo-glass-effect": "~57.0.1",
@@ -57,14 +58,15 @@
     "prestart": "npm run tokens:sync",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint .",
     "typecheck": "npm run tokens:check && tsc --noEmit",
     "test": "jest",
     "prototype:web": "npm --prefix prototypes/member-web/app start",
-    "prototype:web:test": "npm --prefix prototypes/member-web/app run test:in-process"
+    "prototype:web:test": "npm --prefix prototypes/member-web/app run test:in-process",
+    "e2e": "scripts/e2e.sh"
   },
   "jest": {
     "preset": "jest-expo",
