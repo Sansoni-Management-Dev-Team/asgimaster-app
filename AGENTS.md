@@ -45,6 +45,7 @@ Run these from the repository root.
 - `npm run typecheck` — type check with no emit, in every workspace
 - `npm test` — Jest for mobile, Node test runner for the API
 - `npm run format` — Prettier write
+- `npm run e2e` — Maestro smoke test on the booted simulator or emulator (`npm run e2e -- web` for web). Needs Metro running. See the `device-testing` skill.
 
 ## Conventions
 
