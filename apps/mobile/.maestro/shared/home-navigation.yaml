@@ -1,0 +1,13 @@
+# Shared steps: Home is showing and the main navigation switches tabs.
+# Selectors here must match on iOS, Android and web.
+appId: com.sansoni.member
+---
+- extendedWaitUntil:
+    visible:
+      id: member-footer
+    timeout: 60000
+- assertVisible: '(?i)today'
+- tapOn: Library
+- assertNotVisible: '(?i)today'
+- tapOn: Home
+- assertVisible: '(?i)today'

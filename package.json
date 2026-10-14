@@ -13,7 +13,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "e2e": "npm run e2e -w @mlai-sansoni/mobile --"
   },
   "devDependencies": {
     "prettier": "^3.9.6",

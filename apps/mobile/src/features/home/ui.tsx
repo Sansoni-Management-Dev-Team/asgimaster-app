@@ -398,9 +398,11 @@ export function MemberFrame({
       end={{ x: 1, y: 1 }}
       style={{ flex: 1 }}
     >
-      <Head>
-        <title>{title} — Master App</title>
-      </Head>
+      {Platform.OS === 'web' && (
+        <Head>
+          <title>{title} — Master App</title>
+        </Head>
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{

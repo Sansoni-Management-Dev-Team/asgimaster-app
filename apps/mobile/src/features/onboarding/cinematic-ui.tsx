@@ -148,9 +148,11 @@ export function CinemaScreen({
       role={Platform.OS === 'web' ? 'main' : undefined}
       style={{ flex: 1, backgroundColor: c.black }}
     >
-      <Head>
-        <title>{title} — Empire</title>
-      </Head>
+      {Platform.OS === 'web' && (
+        <Head>
+          <title>{title} — Empire</title>
+        </Head>
+      )}
       <View style={{ flex: 1, width: '100%', maxWidth: c.pageMax, alignSelf: 'center' }}>
         {backdrop}
         <KeyboardAvoidingView

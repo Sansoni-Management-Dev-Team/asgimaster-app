@@ -1,0 +1,5 @@
+# Smoke test for web, served by Metro on port 8081.
+url: http://localhost:8081
+---
+- launchApp
+- runFlow: ../shared/home-navigation.yaml

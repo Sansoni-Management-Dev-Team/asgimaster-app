@@ -1,0 +1,20 @@
+# Smoke test for iOS and Android: the app boots to Home and the main navigation works.
+# Runs against a dev client build with Metro running on port 8081.
+appId: com.sansoni.member
+env:
+  # Percent-encoded, because Android will not parse a raw URL inside the query.
+  METRO_URL: http%3A%2F%2Flocalhost%3A8081
+---
+- clearState
+# Starts the app on the bundle directly and skips the dev menu tour.
+- openLink: exp+mlai-sansoni://expo-development-client/?url=${METRO_URL}&disableOnboarding=1
+- extendedWaitUntil:
+    visible: 'Main navigation|Runtime version: .*'
+    timeout: 60000
+# The dev client opens its menu over the app on first launch.
+- runFlow:
+    when:
+      visible: 'Runtime version: .*'
+    commands:
+      - tapOn: Close
+- runFlow: shared/home-navigation.yaml
