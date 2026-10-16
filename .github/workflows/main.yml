@@ -1,0 +1,117 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/main.yml'
+      - 'taskdef.json'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT_ID: '806968064090'
+      AWS_REGION: ap-southeast-2
+      PROJECT: asgi
+      ENVIRONMENT: develop
+      # Derived from the pinned Terraform modules and the asgi Terragrunt inputs.
+      ECR_REPOSITORY: asgi-asgi-app-develop
+      # Use the provisioned bucket. The task execution role still needs S3 read access.
+      ENV_FILES_BUCKET: asgi-main-develop
+    steps:
+      - name: Checkout
+        uses: Sansoni-Management-Dev-Team/devops-github-workflows/checkout@main
+      - name: Assume Role
+        uses: Sansoni-Management-Dev-Team/devops-github-workflows/assume-aws-role@main
+        with:
+          role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-role
+          region: ${{ env.AWS_REGION }}
+      - name: Set image tag
+        run: |
+          echo "IMAGE_TAG=v.${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "PROJECT_NAME=${PROJECT}-app-${ENVIRONMENT}" >> "$GITHUB_ENV"
+      - name: Generate and upload .env file
+        run: |
+          mkdir -p env
+          printf 'PORT=3000\n' > env/.env
+
+          SECRET_KEYS=(
+            DATABASE_MAIN_DATABASE
+            DATABASE_MAIN_HOST
+            DATABASE_MAIN_PASSWORD
+            DATABASE_MAIN_PORT
+            DATABASE_MAIN_USERNAME
+          )
+
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
+
+          for key in "${SECRET_KEYS[@]}"; do
+            # Host, port and database are not in the secret yet. Copy only keys
+            # that exist, rather than supplying settings the API does not use.
+            if jq -e --arg k "$key" 'has($k)' <<< "$SECRET_JSON" > /dev/null; then
+              value=$(jq -r --arg k "$key" '.[$k]' <<< "$SECRET_JSON")
+              printf '%s=%s\n' "$key" "$value" >> env/.env
+            fi
+          done
+
+          aws s3 sync env/ "s3://${ENV_FILES_BUCKET}/${ENV_FILE_PREFIX}/" --delete
+        env:
+          # Secrets Manager accepts the name, so no generated ARN suffix is needed.
+          SECRET_NAME: ${{ env.PROJECT }}-secrets-${{ env.ENVIRONMENT }}
+          ENV_FILE_PREFIX: ${{ env.PROJECT_NAME }}
+      - name: Login to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+      - name: Build and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          docker build -f apps/api/Dockerfile -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+      - name: Update taskdef.json placeholders
+        run: |
+          sed -i \
+            -e "s|\${name}|$NAME|g" \
+            -e "s|\${image}|$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG|g" \
+            -e "s|\${log_group}|$LOG_GROUP|g" \
+            -e "s|\${region}|$AWS_REGION|g" \
+            -e "s|\${env_file}|arn:aws:s3:::$ENV_FILES_BUCKET/$ENV_FILE_PREFIX/.env|g" \
+            taskdef.json
+        env:
+          NAME: app
+          LOG_GROUP: /ecs/${{ env.PROJECT_NAME }}
+          ENV_FILE_PREFIX: ${{ env.PROJECT_NAME }}
+      - name: Register Task Definition
+        id: register
+        uses: Sansoni-Management-Dev-Team/devops-github-workflows/register-task-definition@main
+        with:
+          family: ${{ env.PROJECT_NAME }}
+          taskdef-path: taskdef.json
+          cpu: '256'
+          memory: '512'
+          execution-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT }}-ecs-task-execution-${{ env.ENVIRONMENT }}
+          task-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}
+      - name: Update ECS Service
+        uses: Sansoni-Management-Dev-Team/devops-github-workflows/update-ecs-service@main
+        with:
+          cluster: ${{ env.PROJECT }}-main-${{ env.ENVIRONMENT }}
+          service: ${{ env.PROJECT_NAME }}
+          task-definition-arn: ${{ steps.register.outputs.task-definition-arn }}
+          desired-count: '1'
+          wait-for-stability: 'false'

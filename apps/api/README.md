@@ -23,18 +23,29 @@ docker build -f apps/api/Dockerfile -t mlai-sansoni-api .
 docker run --rm -p 3000:3000 mlai-sansoni-api
 ```
 
-ECS runs the image on ARM (Graviton). On an Intel machine or in CI, add `--platform linux/arm64` to the build.
+Sansoni's ECS task uses x86. The GitHub Actions runner builds the image for that architecture from the repository root.
 
 ## Endpoints
 
-- `GET /health` returns `{"status":"ok"}`. The AWS load balancer uses this path to decide whether a container is healthy, so it must not depend on the database.
+- `GET /` returns `{"status":"ok"}` for the existing load balancer target group health check.
+- `GET /health` returns the same response for the task definition container health check.
 
-## Database settings
+Both routes return 200 without calling the database.
 
-On AWS, the container receives these environment variables for Postgres. Nothing reads them yet.
+## Deployment and database settings
 
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASSWORD`, which ECS reads from Secrets Manager at startup.
+AWS resources live in Sansoni's [devops-infrastructure-asgi-app](https://github.com/Sansoni-Management-Dev-Team/devops-infrastructure-asgi-app) repository and are owned by Sansoni DevOps. The app repository is [Sansoni-Management-Dev-Team/asgimaster-app](https://github.com/Sansoni-Management-Dev-Team/asgimaster-app).
+
+The root `.github/workflows/main.yml` follows Sansoni's empireone pattern using their shared actions. It deploys only relevant pushes to `main`, with `taskdef.json` as the container definition template. The `app` container listens on port 3000 and uses 256 CPU units and 512 MB of memory.
+
+The generated S3 environment file contains `PORT=3000` and the database keys that exist in `asgi-secrets-develop`. The API only reads `PORT` today. These are the database key names used by Sansoni's pipeline:
+
+| Key                      | Status                               |
+| ------------------------ | ------------------------------------ |
+| `DATABASE_MAIN_USERNAME` | Present in the secret configuration. |
+| `DATABASE_MAIN_PASSWORD` | Present in the secret configuration. |
+| `DATABASE_MAIN_HOST`     | Rodney still needs to add it.        |
+| `DATABASE_MAIN_PORT`     | Rodney still needs to add it.        |
+| `DATABASE_MAIN_DATABASE` | Rodney still needs to add it.        |
+
+The workflow reads the secret by name, so it does not need the generated ARN suffix. The `.env` file uses `asgi-main-develop`, the provisioned S3 bucket. The task execution role needs S3 read permission, so deployment will fail until Rodney grants it. There are no migrations yet. Agree a migration step with Rodney when the database code is added.

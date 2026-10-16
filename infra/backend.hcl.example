@@ -1,4 +1,0 @@
-# Copy to backend.hcl. The bucket must exist before terraform init.
-bucket = "sansoni-terraform-state"
-key    = "mlai-sansoni/terraform.tfstate"
-region = "ap-southeast-2"
