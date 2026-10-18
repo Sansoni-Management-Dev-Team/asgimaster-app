@@ -4,8 +4,9 @@ Sansoni member app. This is an npm workspaces monorepo:
 
 - `apps/mobile` is the native iOS and Android app. Expo + React Native + TypeScript.
 - `apps/api` is the backend. A TypeScript Hono server in a container.
+- `infra` is the Terragrunt for the AWS resources the API runs on. Sansoni DevOps (Rodney) maintains it.
 
-The repository is hosted at `Sansoni-Management-Dev-Team/asgimaster-app`. AWS resources live in Sansoni's [devops-infrastructure-asgi-app](https://github.com/Sansoni-Management-Dev-Team/devops-infrastructure-asgi-app) repository and are owned by Sansoni DevOps.
+The repository is hosted at `Sansoni-Management-Dev-Team/asgimaster-app`. AWS resources are defined in `infra/`, which was copied from Sansoni's `devops-infrastructure-asgi-app` repository.
 
 Run `npm install` from the repository root only. There is one lockfile, at the root.
 
@@ -33,11 +34,11 @@ Everything in this section is relative to `apps/mobile`.
 - The load balancer target group checks `GET /`. `GET /health` is also available. Keep both free of database calls.
 - Planned for the API: BetterAuth for auth and Drizzle as the ORM. Neither is installed yet.
 
-Infrastructure is owned by Sansoni DevOps in `devops-infrastructure-asgi-app`. The current environment is `develop` in AWS account `806968064090`, region `ap-southeast-2`. ECS Fargate runs behind an ALB and uses Aurora PostgreSQL. There is no Redis and no message queue.
+Infrastructure is Terragrunt and OpenTofu in `infra/`, using Sansoni's shared `devops-terraform-modules`. See `infra/README.md`. The current environment is `develop` in AWS account `806968064090`, region `ap-southeast-2`. ECS Fargate runs behind an ALB and uses Aurora PostgreSQL. There is no Redis and no message queue. The `develop` environment uses `asgi.pajamaprofits.net`, which is an internal staging domain. The production domain is not decided yet.
 
-The deploy workflow in `.github/workflows/main.yml` and `taskdef.json` follows Sansoni's empireone pattern and uses their shared actions from `devops-github-workflows`. It runs only on pushes to `main` that change API files or the listed build and deploy inputs. Pull requests run CI without deploying.
+The deploy workflow in `.github/workflows/main.yml` and `taskdef.json` follows Sansoni's empireone pattern and uses their shared actions from `devops-github-workflows`. It runs only on pushes that change API files or the listed build and deploy inputs. `main` deploys to `develop`, which is staging, and `production` deploys to production. Pull requests run CI without deploying. `.github/workflows/infra.yml` plans `infra/` on pull requests and applies it on pushes to the same two branches.
 
-Do not run Terraform, call AWS or deploy as part of app development. Sansoni DevOps handles infrastructure changes and deploy readiness. Rodney must review the workflow before the first merge and grant the execution role permission to read the environment file from `asgi-main-develop`. The target group checks `/`, which the API answers without a database call.
+Never run `terragrunt apply` or deploy without the user asking. The AWS account belongs to Sansoni, and Rodney reviews changes to `infra/`. Read-only AWS calls use the `sansoni` AWS profile. Rodney must review the workflow before the first merge and grant the execution role permission to read the environment file from `asgi-main-develop`. The target group checks `/`, which the API answers without a database call.
 
 ## Commands
 

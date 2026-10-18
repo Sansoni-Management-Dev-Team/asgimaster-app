@@ -45,9 +45,9 @@ GitHub Actions runs `.github/workflows/ci.yml` on every pull request and on push
 
 ## API deployment
 
-AWS resources live in Sansoni's [devops-infrastructure-asgi-app](https://github.com/Sansoni-Management-Dev-Team/devops-infrastructure-asgi-app) repository and are owned by Sansoni DevOps. The current environment is `develop` in account `806968064090`, region `ap-southeast-2`.
+AWS resources are defined in [infra/](infra/README.md) with Terragrunt. The current environment is `develop` in account `806968064090`, region `ap-southeast-2`.
 
-`.github/workflows/main.yml` follows the empireone pipeline using Sansoni's shared actions from [devops-github-workflows](https://github.com/Sansoni-Management-Dev-Team/devops-github-workflows). It runs on pushes to `main` that change `apps/api/**`, the root `package.json` or `package-lock.json`, the workflow itself or `taskdef.json`. It cannot run on pull requests or by manual dispatch. It builds from the repository root, uploads the environment file to S3, pushes the image to ECR, registers the task definition and updates the ECS service. There are no database migrations yet.
+`.github/workflows/main.yml` follows the empireone pipeline using Sansoni's shared actions from [devops-github-workflows](https://github.com/Sansoni-Management-Dev-Team/devops-github-workflows). It runs on pushes to `main`, which deploys to `develop` (staging), and to `production`, which deploys to production. It only runs when a push changes `apps/api/**`, the root `package.json` or `package-lock.json`, the workflow itself or `taskdef.json`. It cannot run on pull requests or by manual dispatch. It builds from the repository root, uploads the environment file to S3, pushes the image to ECR, registers the task definition and updates the ECS service. There are no database migrations yet.
 
 Rodney must review the first deploy before this workflow is merged. The environment file uses the provisioned `asgi-main-develop` S3 bucket. The task execution role needs permission to read the file, so deployment will fail until Rodney grants that access. The API answers `/` for the existing target group health check and `/health` for the container health check. Merging an API change to `main` will trigger the deploy workflow.
 

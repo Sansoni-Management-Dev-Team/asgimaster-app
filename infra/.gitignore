@@ -1,9 +1,6 @@
 # Local .terraform directories
 **/.terraform/*
 
-# Terraform lock files (keep .terraform.lock.hcl in version control if desired)
-# .terraform.lock.hcl
-
 # State files
 *.tfstate
 *.tfstate.*
@@ -47,4 +44,6 @@ Thumbs.db
 
 # terragrunt
 .terragrunt-cache
-.terraform.lock.hcl
+
+# Provider lock files are committed so CI and local runs use the same provider
+# versions. The modules only require hashicorp/aws >= 6.0.0.

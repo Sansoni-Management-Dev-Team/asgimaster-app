@@ -1,0 +1,77 @@
+---
+name: Infra
+
+# Terragrunt for the asgi AWS resources in infra/, set up the same way as
+# Sansoni's devops-infrastructure-asgi-app. Pull requests run a plan. Pushes
+# apply: main to develop (staging) and production to production.
+on:
+  pull_request:
+    branches: [main, production]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+  push:
+    branches: [main, production]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  target:
+    runs-on: ubuntu-latest
+    # Plans compare against the branch the pull request merges into.
+    environment: ${{ github.event_name != 'pull_request' && ((github.ref_name == 'production' && 'production') || 'develop') || '' }}
+    env:
+      AWS_ACCOUNT_ID: '806968064090'
+      AWS_REGION: ap-southeast-2
+      TG_VAR_ENVIRONMENT: ${{ ((github.base_ref || github.ref_name) == 'production' && 'production') || 'develop' }}
+      TG_PROVIDER_CACHE: '1'
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - name: Checkout
+        uses: Sansoni-Management-Dev-Team/devops-github-workflows/checkout@main
+      - name: Check branch
+        if: github.event_name == 'workflow_dispatch' && github.ref_name != 'main' && github.ref_name != 'production'
+        run: |
+          echo "Run this workflow from main or production." >&2
+          exit 1
+      - name: Assume Role
+        uses: Sansoni-Management-Dev-Team/devops-github-workflows/assume-aws-role@main
+        with:
+          role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-role
+          region: ${{ env.AWS_REGION }}
+      - name: Read tool versions
+        id: versions
+        run: |
+          echo "terragrunt=$(cat .terragrunt-version)" >> "$GITHUB_OUTPUT"
+          echo "opentofu=$(cat .opentofu-version)" >> "$GITHUB_OUTPUT"
+      - name: Install Terragrunt and OpenTofu
+        # Pinned to a commit because this job holds admin credentials for the account.
+        uses: gruntwork-io/terragrunt-action@8c1d96b76d445fd2e41475a3f0b63dcd1d9cc077 # v3.4.1
+        with:
+          tg_version: ${{ steps.versions.outputs.terragrunt }}
+          tofu_version: ${{ steps.versions.outputs.opentofu }}
+      - name: Configure git for private module access
+        env:
+          TF_MODULES_PAT: ${{ secrets.TF_MODULES_PAT }}
+        run: |
+          git config --global url."https://x-access-token:${TF_MODULES_PAT}@github.com/Sansoni-Management-Dev-Team/".insteadOf "https://github.com/Sansoni-Management-Dev-Team/"
+      - name: plan
+        if: github.event_name == 'pull_request'
+        run: |
+          terragrunt run --all plan --non-interactive
+      - name: apply
+        if: github.event_name != 'pull_request'
+        run: |
+          terragrunt run --all apply --non-interactive

@@ -6,6 +6,11 @@ include "root" {
   path = find_in_parent_folders("root.hcl")
 }
 
+locals {
+  environment = get_env("TG_VAR_ENVIRONMENT")
+  domain      = read_terragrunt_config(find_in_parent_folders("domain.hcl")).locals[local.environment]
+}
+
 dependency "hosted_zone" {
   config_path = find_in_parent_folders("modules/route53/hosted_zone")
 
@@ -58,7 +63,7 @@ inputs = {
     {
       app = {
         zone_id = dependency.hosted_zone.outputs.hosted_zones["default"].id
-        name    = "app.asgi.pajamaprofits.net"
+        name    = local.domain.app_host
         type    = "CNAME"
         ttl     = 300
         values  = [dependency.alb.outputs.load_balancers.public.dns_name]
@@ -66,7 +71,7 @@ inputs = {
 
       asgi-dmarc = {
         zone_id = dependency.hosted_zone.outputs.hosted_zones["default"].id
-        name    = "_dmarc.asgi.pajamaprofits.net"
+        name    = "_dmarc.${local.domain.zone_name}"
         type    = "TXT"
         values  = ["v=DMARC1; p=none;"]
       }

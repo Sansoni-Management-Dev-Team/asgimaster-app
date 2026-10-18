@@ -15,7 +15,7 @@ locals {
   # once provisioned, turn this to true
   exclude = {
     develop = {
-      is_exclude = false
+      is_exclude = true
     }
   }
 

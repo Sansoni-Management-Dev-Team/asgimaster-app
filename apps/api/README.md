@@ -34,7 +34,7 @@ Both routes return 200 without calling the database.
 
 ## Deployment and database settings
 
-AWS resources live in Sansoni's [devops-infrastructure-asgi-app](https://github.com/Sansoni-Management-Dev-Team/devops-infrastructure-asgi-app) repository and are owned by Sansoni DevOps. The app repository is [Sansoni-Management-Dev-Team/asgimaster-app](https://github.com/Sansoni-Management-Dev-Team/asgimaster-app).
+AWS resources are defined in [infra/](../../infra/README.md). The app repository is [Sansoni-Management-Dev-Team/asgimaster-app](https://github.com/Sansoni-Management-Dev-Team/asgimaster-app).
 
 The root `.github/workflows/main.yml` follows Sansoni's empireone pattern using their shared actions. It deploys only relevant pushes to `main`, with `taskdef.json` as the container definition template. The `app` container listens on port 3000 and uses 256 CPU units and 512 MB of memory.
 

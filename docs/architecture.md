@@ -2,7 +2,7 @@
 
 This page shows the V1 architecture for the Sansoni member app and lists the AWS resources it needs. The design reasoning is in [HLDD 01](hldd/01-platform-api-admin.md) and [HLDD 03](hldd/03-integrations.md).
 
-AWS resources run in Sansoni's account `806968064090` in `ap-southeast-2` (Sydney). The current environment is `develop`. A staging environment is defined but has not been provisioned, and there is no production environment yet. Resources live in Sansoni's [devops-infrastructure-asgi-app](https://github.com/Sansoni-Management-Dev-Team/devops-infrastructure-asgi-app) repository and are owned by Sansoni DevOps.
+AWS resources run in Sansoni's account `806968064090` in `ap-southeast-2` (Sydney). The current environment is `develop`. A staging environment is defined but has not been provisioned, and there is no production environment yet. Resources are defined with Terragrunt in [infra/](../infra/README.md), which was copied from Sansoni's `devops-infrastructure-asgi-app` repository. Sansoni DevOps maintains it.
 
 The app repository is [Sansoni-Management-Dev-Team/asgimaster-app](https://github.com/Sansoni-Management-Dev-Team/asgimaster-app). Its `.github/workflows/main.yml` and `taskdef.json` follow Sansoni's empireone deploy pattern using shared actions from `devops-github-workflows`. Relevant pushes to `main` build the API image, upload an environment file to S3, push to ECR, register a task definition and update the ECS service. Pull requests run lint, typecheck, tests and a Docker build without deploying. There is no migration step yet.
 

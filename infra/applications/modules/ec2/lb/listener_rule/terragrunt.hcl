@@ -10,6 +10,7 @@ locals {
   environment = get_env("TG_VAR_ENVIRONMENT")
   tags_vars   = read_terragrunt_config(find_in_parent_folders("tags.hcl"))
   tags        = local.tags_vars.locals[local.environment]
+  domain      = read_terragrunt_config(find_in_parent_folders("domain.hcl")).locals[local.environment]
 }
 
 dependency "tg" {
@@ -86,7 +87,7 @@ inputs = {
       conditions = [
         {
           type   = "host-header"
-          values = ["app.asgi.pajamaprofits.net"]
+          values = [local.domain.app_host]
         }
       ]
     }
