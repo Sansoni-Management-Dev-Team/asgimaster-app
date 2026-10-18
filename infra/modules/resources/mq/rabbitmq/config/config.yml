@@ -1,0 +1,14 @@
+brokers:
+  main:
+    engine_version: "3.13"
+    host_instance_type: mq.m5.large
+    deployment_mode: CLUSTER_MULTI_AZ
+    username_key: MQ_USERNAME
+    password_key: MQ_PASSWORD
+    publicly_accessible: false
+    auto_minor_version_upgrade: true
+    apply_immediately: false
+    general_logs: true
+    maintenance_day_of_week: SUNDAY
+    maintenance_time_of_day: "03:00"
+    maintenance_time_zone: UTC

@@ -100,7 +100,7 @@ How requests flow:
 | CloudWatch alarms                                                           | 5xx rate, task restarts, failed outbox rows, database storage and CPU | Planned.                                                                                         |
 | IAM role `github-role`                                                      | OIDC access for GitHub Actions                                        | Provisioned.                                                                                     |
 
-Resource names above are derived from the asgi Terragrunt inputs and the module versions they pin in `devops-terraform-modules`. The ECR module adds the project and environment to the `asgi-app` config key, which produces `asgi-asgi-app-develop`.
+Resource names above are derived from the asgi Terragrunt inputs and the Terraform modules in `infra/modules`. The ECR module adds the project and environment to the `asgi-app` config key, which produces `asgi-asgi-app-develop`.
 
 Rodney must review the workflow before the first merge. The `.env` file uses the provisioned `asgi-main-develop` bucket. The task execution role needs permission to read the environment file, so deployment will fail until Rodney grants it. The existing target group checks `/` and the container checks `/health`. Both routes return 200 without a database call. Merging the workflow will trigger the first deploy attempt. Database migrations need a separate agreement when they exist.
 

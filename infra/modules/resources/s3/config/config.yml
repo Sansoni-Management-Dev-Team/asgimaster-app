@@ -1,0 +1,51 @@
+buckets:
+  # Standalone static website hosting — publicly readable, served directly
+  # from the S3 website endpoint (no CDN in front).
+  website:
+    versioning: true
+    block_public_access: false
+    website:
+      index_document: index.html
+      error_document: error.html
+    cors_rules:
+      - allowed_methods: ["GET"]
+        allowed_origins: ["https://app.${domain}"]
+        allowed_headers: ["*"]
+        max_age_seconds: 3000
+    policy: website_public_read.json
+    tags:
+      Component: website
+
+  # Private bucket used as a CloudFront origin. No policy set here -
+  # resources/cloudfront/s3 (or an s3-type origin in
+  # resources/cloudfront/distribution) attaches the OAC-grant policy
+  # itself, scoped to its distribution's ARN, in the same apply as the
+  # distribution.
+  cdn_origin:
+    versioning: true
+    block_public_access: true
+    lifecycle_rules:
+      - id: expire-noncurrent-versions
+        prefix: ""
+        noncurrent_version_expiration_days: 30
+    tags:
+      Component: cdn-origin
+
+  # Plain storage/data bucket - no website, no CDN. Private, TLS-only
+  # access, and a lifecycle rule that moves objects to cheaper storage
+  # classes over time before expiring them.
+  data:
+    versioning: true
+    lifecycle_rules:
+      - id: transition-and-expire
+        prefix: ""
+        transitions:
+          - days: 30
+            storage_class: STANDARD_IA
+          - days: 90
+            storage_class: GLACIER
+        expiration_days: 365
+        noncurrent_version_expiration_days: 30
+    policy: enforce_ssl.json
+    tags:
+      Component: data

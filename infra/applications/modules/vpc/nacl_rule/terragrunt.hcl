@@ -1,5 +1,5 @@
 terraform {
-  source = "git::https://github.com/Sansoni-Management-Dev-Team/devops-terraform-modules.git//resources/vpc/network_acl_rule?ref=0.0.6"
+  source = "${get_parent_terragrunt_dir("root")}/modules//resources/vpc/network_acl_rule"
 }
 
 include "root" {

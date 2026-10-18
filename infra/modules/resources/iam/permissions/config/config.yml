@@ -1,0 +1,11 @@
+policies:
+  s3_read:
+    description: "Grants read access to S3 buckets."
+    policy_file: s3_read.json
+    tags:
+      Component: storage
+  rds_connect:
+    description: "Grants RDS IAM authentication connect access."
+    policy_file: rds_connect.json
+    tags:
+      Component: database

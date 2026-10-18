@@ -1,0 +1,36 @@
+security_groups:
+  alb:
+    description: "ALB security group"
+    ingress:
+      http_internet:
+        description: "Allow HTTP from internet"
+        from_port: 80
+        to_port: 80
+        protocol: tcp
+        cidr_ipv4: "0.0.0.0/0"
+      https_internet:
+        description: "Allow HTTPS from internet"
+        from_port: 443
+        to_port: 443
+        protocol: tcp
+        cidr_ipv4: "0.0.0.0/0"
+    egress:
+      all_outbound:
+        description: "Allow all outbound traffic"
+        protocol: "-1"
+        cidr_ipv4: "0.0.0.0/0"
+
+  app:
+    description: "App security group"
+    ingress:
+      from_alb:
+        description: "Allow from ALB on app port"
+        from_port: 8080
+        to_port: 8080
+        protocol: tcp
+        source_sg_key: alb
+    egress:
+      all_outbound:
+        description: "Allow all outbound traffic"
+        protocol: "-1"
+        cidr_ipv4: "0.0.0.0/0"

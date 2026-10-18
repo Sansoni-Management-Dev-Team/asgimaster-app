@@ -1,5 +1,5 @@
 terraform {
-  source = "git::https://github.com/Sansoni-Management-Dev-Team/devops-terraform-modules.git//resources/route53/record?ref=0.0.12"
+  source = "${get_parent_terragrunt_dir("root")}/modules//resources/route53/record"
 }
 
 include "root" {

@@ -8,7 +8,8 @@ The AWS account is `806968064090` and the region is `ap-southeast-2`. The accoun
 
 - `root.hcl` sets the S3 state bucket and locking. Locks use an S3 lock file and the DynamoDB table together. Remove the DynamoDB table once `devops-infrastructure-asgi-app` no longer applies to this state. Each unit keeps its state under its path from this folder, for example `applications/modules/vpc/vpc/tf.tfstate`. These paths are the same as in the old repository, so this folder uses the existing state.
 - `applications/region.hcl`, `applications/tags.hcl` and `applications/domain.hcl` hold the settings for each environment.
-- `applications/modules/<service>/terragrunt.hcl` is one unit for each group of resources. Each unit uses a pinned version of Sansoni's private `devops-terraform-modules` repository.
+- `applications/modules/<service>/terragrunt.hcl` is one unit for each group of resources. The folder name comes from Sansoni's layout. These are Terragrunt units, not Terraform modules. Renaming them would move their state, so leave the paths as they are.
+- `modules/` holds the Terraform modules that the units use. It is a copy of Sansoni's `devops-terraform-modules` repository at tag `0.0.24`, made on 18 October 2026 because we no longer have access to that repository. This copy is now the source, so change modules here. `modules/CLAUDE.md` describes how the modules are written.
 - `scripts/propagate` holds Rodney's scripts that add the hosted zone's NS records to the parent zone in Sansoni's system account.
 
 ## Environments
@@ -25,7 +26,7 @@ The AWS account is `806968064090` and the region is `ap-southeast-2`. The accoun
 
 ## Running a plan locally
 
-You need git access to `devops-terraform-modules` and the `sansoni` AWS profile.
+You need the `sansoni` AWS profile.
 
 OpenTofu cannot read a profile set up with `aws login`. Add a second profile to `~/.aws/config` that asks the AWS CLI for credentials:
 
@@ -53,7 +54,7 @@ Never run `apply` without agreeing it with Rodney first.
 | `main`       | `develop` (staging) | plan         | apply |
 | `production` | `production`        | plan         | apply |
 
-It uses `github-role` through OIDC and the `TF_MODULES_PAT` secret to read the private modules. Apply jobs run in the GitHub environment of the same name, so reviewers can be required there. `production` fails until its domain and its state bucket exist.
+It uses `github-role` through OIDC. Apply jobs run in the GitHub environment of the same name, so reviewers can be required there. `production` fails until its domain and its state bucket exist.
 
 On pull requests the plan is posted as one comment for each target environment, and the comment is updated on every push. `.github/scripts/terragrunt-plan-comment.py` builds it from Terragrunt's JSON log. It lists the units that change and shows each unit's diff in a collapsed section. The same text goes in the job summary.
 

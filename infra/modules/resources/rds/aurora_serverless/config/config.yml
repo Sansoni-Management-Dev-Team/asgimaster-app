@@ -1,0 +1,49 @@
+clusters:
+  main:
+    engine: aurora-postgresql
+    engine_version: "16.4"
+    # database_name is combined with var.project and var.environment in
+    # main.tf as <project>_<database_name>_<environment>, so this is just
+    # the base name (e.g. "bass" -> myapp_bass_production).
+    database_name: bass
+    username_key: DB_USERNAME
+    password_key: DB_PASSWORD
+    min_capacity: 0.5
+    max_capacity: 8
+    instances: 1
+    backup_retention_period: 7
+    deletion_protection: false
+    skip_final_snapshot: true
+    require_secure_transport: true
+  test:
+    engine: aurora-postgresql
+    engine_version: "16.4"
+    database_name: bass_test
+    username_key: DB_TEST_USERNAME
+    password_key: DB_TEST_PASSWORD
+    min_capacity: 0.5
+    max_capacity: 2
+    instances: 1
+    backup_retention_period: 1
+    deletion_protection: false
+    skip_final_snapshot: true
+  # Production: 2 instances (writer + reader), higher ceiling for traffic
+  # spikes, longer backup retention, and guarded against accidental deletion.
+  production:
+    engine: aurora-postgresql
+    engine_version: "16.4"
+    database_name: bass_production
+    username_key: DB_PROD_USERNAME
+    password_key: DB_PROD_PASSWORD
+    min_capacity: 1
+    max_capacity: 16
+    instances: 2
+    backup_retention_period: 30
+    # Prevent `terraform destroy`/replacement from deleting the cluster.
+    deletion_protection: true
+    # Take a final snapshot instead of discarding data on deletion. Since
+    # RDS requires a unique snapshot identifier per deletion, override
+    # final_snapshot_identifier before destroying more than once (the
+    # default below is a static name and will collide on a second destroy).
+    skip_final_snapshot: false
+    final_snapshot_identifier: myapp-production-final
