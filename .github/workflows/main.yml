@@ -1,8 +1,9 @@
 name: Deploy API
 
+# main deploys to develop (staging) and production deploys to production.
 on:
   push:
-    branches: [main]
+    branches: [main, production]
     paths:
       - 'apps/api/**'
       - 'package.json'
@@ -11,7 +12,7 @@ on:
       - 'taskdef.json'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-main
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -20,17 +21,18 @@ permissions:
 
 jobs:
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: ${{ (github.ref_name == 'production' && 'production') || 'develop' }}
     env:
       AWS_ACCOUNT_ID: '806968064090'
       AWS_REGION: ap-southeast-2
       PROJECT: asgi
-      ENVIRONMENT: develop
+      ENVIRONMENT: ${{ (github.ref_name == 'production' && 'production') || 'develop' }}
       # Derived from the pinned Terraform modules and the asgi Terragrunt inputs.
-      ECR_REPOSITORY: asgi-asgi-app-develop
+      ECR_REPOSITORY: asgi-asgi-app-${{ (github.ref_name == 'production' && 'production') || 'develop' }}
       # Use the provisioned bucket. The task execution role still needs S3 read access.
-      ENV_FILES_BUCKET: asgi-main-develop
+      ENV_FILES_BUCKET: asgi-main-${{ (github.ref_name == 'production' && 'production') || 'develop' }}
     steps:
       - name: Checkout
         uses: Sansoni-Management-Dev-Team/devops-github-workflows/checkout@main

@@ -1,0 +1,15 @@
+clusters:
+  main:
+    engine: aurora-postgresql
+    engine_version: "18.6"
+    database_name: asgi
+    username_key: DATABASE_MAIN_USERNAME
+    password_key: DATABASE_MAIN_PASSWORD
+    min_capacity: 0
+    max_capacity: 2
+    instances: 1
+    backup_retention_period: 7
+    deletion_protection: true
+    skip_final_snapshot: false
+    final_snapshot_identifier: scaling
+    require_secure_transport: false

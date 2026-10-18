@@ -1,0 +1,28 @@
+network_acls:
+  public:
+    ingress:
+      allow_all:
+        rule_number: 100
+        protocol: "-1"
+        rule_action: allow
+        cidr_block: "0.0.0.0/0"
+    egress:
+      allow_all:
+        rule_number: 100
+        protocol: "-1"
+        rule_action: allow
+        cidr_block: "0.0.0.0/0"
+
+  private:
+    ingress:
+      allow_all:
+        rule_number: 100
+        protocol: "-1"
+        rule_action: allow
+        cidr_block: "0.0.0.0/0"
+    egress:
+      allow_all:
+        rule_number: 100
+        protocol: "-1"
+        rule_action: allow
+        cidr_block: "0.0.0.0/0"

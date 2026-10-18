@@ -1,5 +1,5 @@
 # The standalone prototype retains its original web formatting.
 apps/mobile/prototypes/member-web/
 
-# Downloaded Terraform providers.
-infra/.terraform/
+# Terragrunt is kept in the same format as Sansoni's other infrastructure repos.
+infra/

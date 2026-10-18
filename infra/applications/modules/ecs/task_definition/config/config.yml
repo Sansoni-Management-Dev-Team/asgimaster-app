@@ -1,0 +1,8 @@
+task_definitions:
+  app:
+    cpu: 256
+    memory: 512
+    network_mode: awsvpc
+    requires_compatibilities:
+      - FARGATE
+    container_definitions: task_definition.json

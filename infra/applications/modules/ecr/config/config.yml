@@ -1,0 +1,6 @@
+repositories:
+  asgi-app:
+    image_tag_mutability: IMMUTABLE
+    force_delete: false
+    scan_on_push: true
+    policy: default.json

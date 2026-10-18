@@ -1,0 +1,16 @@
+roles:
+  github-role:
+    assume_role_policy: github_role_assume_role_policy.json
+    name: github-role
+    managed_policy_arns:
+      - arn:aws:iam::aws:policy/AdministratorAccess
+  ecs-task-execution:
+    assume_role_policy: ecs_assume_role_policy.json
+    managed_policy_arns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    inline_policies:
+      task_permissions:
+        policy_file: ecs_task_execution_inline_policy.json
+  app:
+    assume_role_policy: ecs_assume_role_policy.json
+

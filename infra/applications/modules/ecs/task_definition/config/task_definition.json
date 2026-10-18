@@ -1,0 +1,28 @@
+[
+  {
+    "name": "${name}",
+    "image": "httpd:latest",
+    "essential": true,
+    "portMappings": [
+      {
+        "containerPort": 3000,
+        "protocol": "tcp"
+      }
+    ],
+    "entryPoint": [
+      "sh",
+      "-c"
+    ],
+    "command": [
+      "sed -i 's/^Listen 80$/Listen 3000/' /usr/local/apache2/conf/httpd.conf && httpd-foreground"
+    ],
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${log_group}",
+        "awslogs-region": "${region}",
+        "awslogs-stream-prefix": "ecs"
+      }
+    }
+  }
+]
