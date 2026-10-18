@@ -90,7 +90,7 @@ How requests flow:
 | Aurora Serverless v2, PostgreSQL 18.6                                       | Main database `asgi`, capacity from 0 to 2 units, 7 days of backups   | Provisioned with deletion protection.                                                            |
 | Secrets Manager `asgi-secrets-develop`                                      | Database credentials                                                  | Username and password configured. Host, port and database keys still needed.                     |
 | CloudWatch log group `/ecs/asgi-app-develop`                                | API logs, kept for 14 days                                            | Provisioned.                                                                                     |
-| IAM execution role `asgi-ecs-task-execution-develop`                        | Image pulls, logs and secret reads                                    | Provisioned. S3 environment file access still needed.                                            |
+| IAM execution role `asgi-ecs-task-execution-develop`                        | Image pulls, logs and secret reads                                    | Provisioned. Can read the app's environment files in S3.                                         |
 | IAM task role `asgi-app-develop`                                            | ECS Exec                                                              | Provisioned. SES send permission still needed.                                                   |
 | Route 53 and ACM                                                            | HTTPS for `app.asgi.pajamaprofits.net`                                | Provisioned.                                                                                     |
 | SES domain `asgi.pajamaprofits.net`                                         | Invite and sign-in email                                              | Verified domain. Application integration still planned.                                          |
@@ -102,7 +102,7 @@ How requests flow:
 
 Resource names above are derived from the asgi Terragrunt inputs and the Terraform modules in `infra/modules`. The ECR module adds the project and environment to the `asgi-app` config key, which produces `asgi-asgi-app-develop`.
 
-Rodney must review the workflow before the first merge. The `.env` file uses the provisioned `asgi-main-develop` bucket. The task execution role needs permission to read the environment file, so deployment will fail until Rodney grants it. The existing target group checks `/` and the container checks `/health`. Both routes return 200 without a database call. Merging the workflow will trigger the first deploy attempt. Database migrations need a separate agreement when they exist.
+The `.env` file uses the provisioned `asgi-main-develop` bucket, and the task execution role can read the app's files there. The deploy waits until the new tasks are healthy, so a deploy that cannot start fails the workflow. The existing target group checks `/` and the container checks `/health`. Both routes return 200 without a database call. Merging the workflow will trigger the first deploy attempt. Database migrations need a separate agreement when they exist.
 
 ## Third-party access
 
