@@ -48,4 +48,4 @@ The generated S3 environment file contains `PORT=3000` and the database keys tha
 | `DATABASE_MAIN_PORT`     | Rodney still needs to add it.        |
 | `DATABASE_MAIN_DATABASE` | Rodney still needs to add it.        |
 
-The workflow reads the secret by name, so it does not need the generated ARN suffix. The `.env` file uses `asgi-main-develop`, the provisioned S3 bucket. The task execution role needs S3 read permission, so deployment will fail until Rodney grants it. There are no migrations yet. Agree a migration step with Rodney when the database code is added.
+The workflow reads the secret by name, so it does not need the generated ARN suffix. The `.env` file uses `asgi-main-develop`, the provisioned S3 bucket. The task execution role can read it. There are no migrations yet. Agree a migration step with Rodney when the database code is added.

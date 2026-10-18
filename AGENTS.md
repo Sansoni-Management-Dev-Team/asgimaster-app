@@ -38,7 +38,7 @@ Infrastructure is Terragrunt and OpenTofu in `infra/`. The units are in `infra/a
 
 The deploy workflow in `.github/workflows/main.yml` and `taskdef.json` follows Sansoni's empireone pattern and uses their shared actions from `devops-github-workflows`. It runs only on pushes that change API files or the listed build and deploy inputs. `main` deploys to `develop`, which is staging, and `production` deploys to production. Pull requests run CI without deploying. `.github/workflows/infra.yml` plans `infra/` on pull requests and applies it on pushes to the same two branches.
 
-Never run `terragrunt apply` or deploy without the user asking. The AWS account belongs to Sansoni, and Rodney reviews changes to `infra/`. Read-only AWS calls use the `sansoni` AWS profile. Rodney must review the workflow before the first merge and grant the execution role permission to read the environment file from `asgi-main-develop`. The target group checks `/`, which the API answers without a database call.
+Never run `terragrunt apply` or deploy without the user asking. The AWS account belongs to Sansoni, and Rodney reviews changes to `infra/`. Read-only AWS calls use the `sansoni` AWS profile. The target group checks `/`, which the API answers without a database call.
 
 ## Commands
 

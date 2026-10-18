@@ -116,4 +116,5 @@ jobs:
           service: ${{ env.PROJECT_NAME }}
           task-definition-arn: ${{ steps.register.outputs.task-definition-arn }}
           desired-count: '1'
-          wait-for-stability: 'false'
+          # Fail the workflow if the new tasks never become healthy.
+          wait-for-stability: 'true'

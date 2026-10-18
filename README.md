@@ -49,7 +49,7 @@ AWS resources are defined in [infra/](infra/README.md) with Terragrunt. The curr
 
 `.github/workflows/main.yml` follows the empireone pipeline using Sansoni's shared actions from [devops-github-workflows](https://github.com/Sansoni-Management-Dev-Team/devops-github-workflows). It runs on pushes to `main`, which deploys to `develop` (staging), and to `production`, which deploys to production. It only runs when a push changes `apps/api/**`, the root `package.json` or `package-lock.json`, the workflow itself or `taskdef.json`. It cannot run on pull requests or by manual dispatch. It builds from the repository root, uploads the environment file to S3, pushes the image to ECR, registers the task definition and updates the ECS service. There are no database migrations yet.
 
-Rodney must review the first deploy before this workflow is merged. The environment file uses the provisioned `asgi-main-develop` S3 bucket. The task execution role needs permission to read the file, so deployment will fail until Rodney grants that access. The API answers `/` for the existing target group health check and `/health` for the container health check. Merging an API change to `main` will trigger the deploy workflow.
+The environment file uses the provisioned `asgi-main-develop` S3 bucket, and the task execution role can read it. The workflow waits until the new tasks are healthy, so a deploy that cannot start fails the workflow. The API answers `/` for the existing target group health check and `/health` for the container health check. Merging an API change to `main` will trigger the deploy workflow.
 
 Each folder has its own README with more detail:
 

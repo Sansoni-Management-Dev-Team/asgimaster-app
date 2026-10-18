@@ -7,6 +7,22 @@
         "secretsmanager:GetSecretValue"
       ],
       "Resource": "arn:aws:secretsmanager:${region}:${aws_account}:secret:${project}-secrets-${environment}-*"
+    },
+    {
+      "Sid": "ReadEcsEnvironmentFiles",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::${project}-main-${environment}/${project}-app-${environment}/*"
+    },
+    {
+      "Sid": "LocateEnvironmentFileBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation"
+      ],
+      "Resource": "arn:aws:s3:::${project}-main-${environment}"
     }
   ]
 }
