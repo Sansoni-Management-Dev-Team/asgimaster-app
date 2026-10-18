@@ -25,7 +25,7 @@ locals {
 
 exclude {
   if      = local.exclude[local.environment].is_exclude
-  actions = ["apply", "destroy"]
+  actions = ["plan", "apply", "destroy"]
 }
 
 dependency "cluster" {

@@ -13,6 +13,9 @@ remote_state {
     bucket         = "tg-state-${local.environment}-${local.tags.project}-${local.regions.aws_region}"
     key            = "${path_relative_to_include()}/tf.tfstate"
     region         = local.regions.aws_region
+    use_lockfile   = true
+    # Kept while devops-infrastructure-asgi-app can still apply to this state.
+    # Remove once only this repo applies.
     dynamodb_table = "tg-locks-${local.environment}-${local.tags.project}-${local.regions.aws_region}"
   }
   generate = {
