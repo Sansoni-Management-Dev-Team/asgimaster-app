@@ -67,7 +67,13 @@ jobs:
         env:
           TF_MODULES_PAT: ${{ secrets.TF_MODULES_PAT }}
         run: |
-          git config --global url."https://x-access-token:${TF_MODULES_PAT}@github.com/Sansoni-Management-Dev-Team/".insteadOf "https://github.com/Sansoni-Management-Dev-Team/"
+          if [ -n "$TF_MODULES_PAT" ]; then
+            git config --global url."https://x-access-token:${TF_MODULES_PAT}@github.com/Sansoni-Management-Dev-Team/".insteadOf "https://github.com/Sansoni-Management-Dev-Team/"
+          else
+            # No token yet, so read the modules from the copy in infra/vendor (see its README).
+            git clone --quiet --mirror vendor/devops-terraform-modules.bundle "$RUNNER_TEMP/devops-terraform-modules.git"
+            git config --global url."file://$RUNNER_TEMP/devops-terraform-modules.git".insteadOf "https://github.com/Sansoni-Management-Dev-Team/devops-terraform-modules.git"
+          fi
       - name: plan
         id: plan
         if: github.event_name == 'pull_request'
