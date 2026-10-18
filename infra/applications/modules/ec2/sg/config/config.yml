@@ -1,0 +1,51 @@
+security_groups:
+  alb:
+    description: "ALB security group"
+    ingress:
+      http_internet:
+        description: "Allow HTTP from internet"
+        from_port: 80
+        to_port: 80
+        protocol: tcp
+        cidr_ipv4: "0.0.0.0/0"
+      https_internet:
+        description: "Allow HTTPS from internet"
+        from_port: 443
+        to_port: 443
+        protocol: tcp
+        cidr_ipv4: "0.0.0.0/0"
+    egress:
+      all_outbound:
+        description: "Allow all outbound traffic"
+        protocol: "-1"
+        cidr_ipv4: "0.0.0.0/0"
+
+  app:
+    description: "API security group"
+    ingress:
+      from_alb:
+        description: "Allow from ALB on api port"
+        from_port: 3000
+        to_port: 3000
+        protocol: tcp
+        source_sg_key: alb
+    egress:
+      all_outbound:
+        description: "Allow all outbound traffic"
+        protocol: "-1"
+        cidr_ipv4: "0.0.0.0/0"
+
+  rds:
+    description: "RDS security group"
+    ingress:
+      from_app:
+        description: "Allow from APP to access RDS"
+        from_port: 5432
+        to_port: 5432
+        protocol: tcp
+        source_sg_key: app
+    egress:
+      all_outbound:
+        description: "Allow all outbound traffic"
+        protocol: "-1"
+        cidr_ipv4: "0.0.0.0/0"

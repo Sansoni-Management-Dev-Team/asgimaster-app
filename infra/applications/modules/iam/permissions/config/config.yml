@@ -1,0 +1,5 @@
+policies:
+  app:
+    description: "App ECS service role permission."
+    policy_file: app.json
+

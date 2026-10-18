@@ -1,0 +1,9 @@
+buckets:
+  main:
+    versioning: true
+    block_public_access: true
+    lifecycle_rules:
+      - id: expire-noncurrent-versions
+        prefix: ""
+        noncurrent_version_expiration_days: 30
+    policy: enforce_ssl.json

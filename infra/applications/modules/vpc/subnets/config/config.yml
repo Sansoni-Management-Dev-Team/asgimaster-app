@@ -1,0 +1,7 @@
+subnets:
+  private:
+    cidr_blocks: ["10.3.1.0/24", "10.3.2.0/24"]
+  public:
+    cidr_blocks: ["10.3.10.0/24", "10.3.11.0/24"]
+  database:
+    cidr_blocks: ["10.3.20.0/24", "10.3.21.0/24"]
