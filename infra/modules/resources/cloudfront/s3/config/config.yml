@@ -1,0 +1,81 @@
+distributions:
+  # Single-page app backed by a private S3 bucket via OAC. bucket_name is
+  # just the bucket's name - the module looks up its
+  # bucket_regional_domain_name with a data source, then reads whatever
+  # policy is already on the bucket and folds the OAC-grant statement into
+  # it, so no Terragrunt `dependency` block on resources/s3 is needed here.
+  # The bucket must already have some policy attached (e.g. via
+  # resources/s3's `policy` field) before this module's first apply.
+  static_site:
+    comment: "Static site backed by a private S3 bucket via OAC"
+    default_root_object: index.html
+    aliases:
+      - assets.example.com
+    # acm_certificate_arn is supplied via the acm_certificate_arn_overrides
+    # input, keyed by distribution key, from a resources/acm dependency
+    # block - config_file never sees Terragrunt's ${dependency...}
+    # interpolation. Omitted here so plan/validate falls back to the
+    # default *.cloudfront.net certificate.
+    origins:
+      s3:
+        bucket_name: myapp-cdn-origin-production
+        # The module's own provider region (var.region) is us-east-1, for
+        # CloudFront/ACM - this bucket actually lives in ap-southeast-2, so
+        # the lookup and bucket policy for it are overridden per-origin.
+        bucket_region: ap-southeast-2
+    default_cache_behavior:
+      target_origin_id: s3
+      viewer_protocol_policy: redirect-to-https
+      allowed_methods: ["GET", "HEAD"]
+      cached_methods: ["GET", "HEAD"]
+      # AWS managed "CachingOptimized" policy - same ID in every account/region.
+      cache_policy_id: 658327ea-f89d-4fab-a63d-7e88639e58f6
+      # function_arn here is a static ARN for a function created outside
+      # Terragrunt. If it instead comes from a resources/cloudfront/function
+      # dependency block, omit function_arn (or leave any placeholder) and
+      # supply the real ARN via the module-level function_arn_overrides
+      # input instead - same reasoning as acm_certificate_arn_overrides.
+      function_associations:
+        - event_type: viewer-request
+          function_arn: arn:aws:cloudfront::123456789012:function/viewer-request-redirect
+    # SPA-style error pages: S3 (via OAC) returns 403, not 404, for a
+    # missing key, so both codes are mapped back to index.html and given
+    # to the browser as a 200 so client-side routing can take over.
+    custom_error_responses:
+      - error_code: 403
+        response_code: 200
+        response_page_path: /index.html
+        error_caching_min_ttl: 10
+      - error_code: 404
+        response_code: 200
+        response_page_path: /index.html
+        error_caching_min_ttl: 10
+
+  # Docs site with its own static 404 page instead of SPA-style fallback.
+  docs_site:
+    comment: "Docs site backed by a private S3 bucket via OAC"
+    default_root_object: index.html
+    origins:
+      s3:
+        bucket_name: myapp-docs-production
+        # Folded into the same document as the CloudFront grant and
+        # whatever else was already on the bucket - each needs a unique
+        # Sid so re-applies replace rather than duplicate it.
+        extra_policy_statements:
+          - Sid: AllowInternalReadForAudit
+            Effect: Allow
+            Principal:
+              AWS: arn:aws:iam::123456789012:role/audit-readonly
+            Action: s3:GetObject
+            Resource: arn:aws:s3:::myapp-docs-production/*
+    default_cache_behavior:
+      target_origin_id: s3
+      viewer_protocol_policy: redirect-to-https
+      allowed_methods: ["GET", "HEAD"]
+      cached_methods: ["GET", "HEAD"]
+      cache_policy_id: 658327ea-f89d-4fab-a63d-7e88639e58f6
+    custom_error_responses:
+      - error_code: 404
+        response_code: 404
+        response_page_path: /404.html
+        error_caching_min_ttl: 300

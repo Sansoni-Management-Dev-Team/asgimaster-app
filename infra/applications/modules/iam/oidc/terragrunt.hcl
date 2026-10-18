@@ -1,5 +1,5 @@
 terraform {
-  source = "git::https://github.com/Sansoni-Management-Dev-Team/devops-terraform-modules.git//resources/iam/oidc?ref=0.0.4"
+  source = "${get_parent_terragrunt_dir("root")}/modules//resources/iam/oidc"
 }
 
 include "root" {

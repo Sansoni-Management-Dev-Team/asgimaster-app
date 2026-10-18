@@ -1,0 +1,10 @@
+caches:
+  cache:
+    description: "Serverless Valkey cache"
+    engine: valkey
+    major_engine_version: "9"
+    data_storage_max: 10
+    data_storage_unit: GB
+    ecpu_per_second_max: 5000
+    daily_snapshot_time: "09:00"
+    snapshot_retention_limit: 1

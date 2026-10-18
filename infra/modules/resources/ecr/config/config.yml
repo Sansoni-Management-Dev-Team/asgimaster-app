@@ -1,0 +1,11 @@
+repositories:
+  api:
+    image_tag_mutability: IMMUTABLE
+    force_delete: false
+    scan_on_push: true
+    policy: default.json
+  worker:
+    image_tag_mutability: MUTABLE
+    force_delete: false
+    scan_on_push: true
+    policy: default.json

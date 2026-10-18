@@ -1,5 +1,5 @@
 terraform {
-  source = "git::https://github.com/Sansoni-Management-Dev-Team/devops-terraform-modules.git//resources/rds/aurora_serverless?ref=0.0.6"
+  source = "${get_parent_terragrunt_dir("root")}/modules//resources/rds/aurora_serverless"
 }
 
 include "root" {

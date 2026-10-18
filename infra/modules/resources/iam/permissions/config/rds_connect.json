@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowRDSIAMConnect",
+      "Effect": "Allow",
+      "Action": "rds-db:connect",
+      "Resource": "arn:aws:rds-db:${region}:${aws_account}:dbuser:DB_RESOURCE_ID/DB_USERNAME"
+    }
+  ]
+}

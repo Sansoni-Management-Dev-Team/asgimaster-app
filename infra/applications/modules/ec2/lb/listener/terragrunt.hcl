@@ -1,5 +1,5 @@
 terraform {
-  source = "git::https://github.com/Sansoni-Management-Dev-Team/devops-terraform-modules.git//resources/lb/listener?ref=0.0.6"
+  source = "${get_parent_terragrunt_dir("root")}/modules//resources/lb/listener"
 }
 
 include "root" {

@@ -1,0 +1,117 @@
+distributions:
+  # Example 1: web app served from an ALB, with a private S3 bucket for
+  # static assets on a second path - the mixed-origin case this module
+  # exists for. Neither origin is resolved by this module guessing a
+  # resource's name and looking it up via a data source - alb's
+  # domain_name is a static Route53 hostname you choose yourself (see
+  # below), and static_assets' bucket id/arn/domain name come from the
+  # s3_bucket_overrides Terragrunt input (fed by a resources/s3
+  # `dependency` block) - see README.md's Sample Terragrunt Usage.
+  app:
+    comment: "App served from ALB with static assets from S3 on /static/*"
+    aliases:
+      - app.example.com
+    # acm_certificate_arn supplied via acm_certificate_arn_overrides.
+    origins:
+      alb:
+        type: alb
+        # With origin_protocol_policy: https-only, CloudFront validates
+        # the ALB's certificate against the domain name it connects to.
+        # The ALB's listener certificate almost always covers a custom
+        # domain, not its own *.elb.amazonaws.com DNS name - connecting to
+        # the raw DNS name fails certificate validation and CloudFront
+        # returns a 502. Point this at a Route53 record (resolving to the
+        # ALB) that the certificate's SANs actually cover instead; only an
+        # origin pointed at the ALB's raw dns_name needs a `dependency`
+        # block, wired through origin_domain_name_overrides (see README.md
+        # "ALB origin certificate validation").
+        domain_name: origin-app.example.com
+        origin_protocol_policy: https-only
+      static_assets:
+        type: s3
+        # id / arn / bucket_regional_domain_name come from
+        # s3_bucket_overrides["app:static_assets"] in the calling
+        # terragrunt.hcl - no fields needed here unless this origin's own
+        # domain_name should override that.
+        bucket_region: ap-southeast-2
+    default_cache_behavior:
+      target_origin_id: alb
+      viewer_protocol_policy: redirect-to-https
+      allowed_methods: ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods: ["GET", "HEAD"]
+      forward_cookies: all
+      forward_query_string: true
+    ordered_cache_behaviors:
+      static:
+        path_pattern: /static/*
+        target_origin_id: static_assets
+        viewer_protocol_policy: redirect-to-https
+        allowed_methods: ["GET", "HEAD"]
+        cached_methods: ["GET", "HEAD"]
+        cache_policy_id: 658327ea-f89d-4fab-a63d-7e88639e58f6 # AWS managed CachingOptimized
+
+  # Example 2: single-page app backed by a private S3 bucket via OAC only.
+  static_site:
+    comment: "Static site backed by a private S3 bucket via OAC"
+    default_root_object: index.html
+    aliases:
+      - assets.example.com
+    origins:
+      s3:
+        type: s3
+        # Serve from the bucket's web/ prefix: a request for /foo.js is
+        # fetched as s3://<bucket>/web/foo.js. Leading slash, no trailing
+        # slash. default_root_object and response_page_path below resolve
+        # under this prefix too, so they stay /index.html.
+        origin_path: /web
+        # id / arn / bucket_regional_domain_name come from
+        # s3_bucket_overrides["static_site:s3"] in the calling
+        # terragrunt.hcl.
+        #
+        # function_arn below is a placeholder - the real ARN is supplied
+        # via the module-level function_arn_overrides input since it
+        # comes from a resources/cloudfront/function dependency block.
+    default_cache_behavior:
+      target_origin_id: s3
+      viewer_protocol_policy: redirect-to-https
+      allowed_methods: ["GET", "HEAD"]
+      cached_methods: ["GET", "HEAD"]
+      cache_policy_id: 658327ea-f89d-4fab-a63d-7e88639e58f6
+      function_associations:
+        - event_type: viewer-request
+          function_arn: arn:aws:cloudfront::123456789012:function/viewer-request-redirect
+    # SPA-style error pages: S3 (via OAC) returns 403, not 404, for a
+    # missing key, so both codes are mapped back to index.html and given
+    # to the browser as a 200 so client-side routing can take over.
+    custom_error_responses:
+      - error_code: 403
+        response_code: 200
+        response_page_path: /index.html
+        error_caching_min_ttl: 10
+      - error_code: 404
+        response_code: 200
+        response_page_path: /index.html
+        error_caching_min_ttl: 10
+
+  # Example 3: generic custom origin - anything reachable over HTTP(S) at a
+  # fixed domain name that isn't an ALB or S3 bucket in this account (API
+  # Gateway, on-prem server, MediaStore/MediaPackage, another vendor's
+  # CDN). domain_name here is a placeholder if the real value comes from a
+  # Terragrunt dependency block - see origin_domain_name_overrides.
+  third_party:
+    comment: "Generic custom origin (any HTTP(S) endpoint)"
+    origins:
+      origin:
+        type: custom
+        domain_name: abc123xyz.execute-api.ap-southeast-1.amazonaws.com
+        origin_path: /production
+        origin_protocol_policy: https-only
+        custom_headers:
+          X-Custom-Auth: shared-secret-value
+    default_cache_behavior:
+      target_origin_id: origin
+      viewer_protocol_policy: https-only
+      allowed_methods: ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods: ["GET", "HEAD"]
+      forward_cookies: all
+      forward_query_string: true

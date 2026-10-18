@@ -1,5 +1,5 @@
 terraform {
-  source = "git::https://github.com/Sansoni-Management-Dev-Team/devops-terraform-modules.git//resources/ecs/task_definition?ref=0.0.8"
+  source = "${get_parent_terragrunt_dir("root")}/modules//resources/ecs/task_definition"
 }
 
 include "root" {
