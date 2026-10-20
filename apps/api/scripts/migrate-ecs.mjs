@@ -37,6 +37,7 @@ const wait = (args) => {
 const evidence = {
   phase: 'resolving-service',
   nextTaskDefinition: taskDefinition,
+  nextEnvironmentFile: required('RELEASE_ENVIRONMENT_FILE_ARN'),
   restoreRehearsalReference: process.env.RESTORE_REHEARSAL_REFERENCE,
 };
 const save = () =>

@@ -55,6 +55,7 @@ jobs:
         run: |
           echo "IMAGE_TAG=v.${GITHUB_SHA::7}" >> "$GITHUB_ENV"
           echo "PROJECT_NAME=${PROJECT}-app-${ENVIRONMENT}" >> "$GITHUB_ENV"
+          echo "ENV_FILE_PREFIX=${PROJECT}-app-${ENVIRONMENT}/releases/${GITHUB_SHA}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
       - name: Generate and upload .env file
         run: |
           mkdir -p env
@@ -90,11 +91,11 @@ jobs:
           done
           printf 'MAIL_TRANSPORT=ses\n' >> env/.env
 
-          aws s3 sync env/ "s3://${ENV_FILES_BUCKET}/${ENV_FILE_PREFIX}/" --delete
+          # Retain earlier configuration, including the legacy shared object, for rollback.
+          aws s3 cp env/.env "s3://${ENV_FILES_BUCKET}/${ENV_FILE_PREFIX}/.env" --only-show-errors
         env:
           # Secrets Manager accepts the name, so no generated ARN suffix is needed.
           SECRET_NAME: ${{ env.PROJECT }}-secrets-${{ env.ENVIRONMENT }}
-          ENV_FILE_PREFIX: ${{ env.PROJECT_NAME }}
       - name: Login to Amazon ECR
         env:
           ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
@@ -119,7 +120,6 @@ jobs:
         env:
           NAME: app
           LOG_GROUP: /ecs/${{ env.PROJECT_NAME }}
-          ENV_FILE_PREFIX: ${{ env.PROJECT_NAME }}
       - name: Register Task Definition
         id: register
         uses: Sansoni-Management-Dev-Team/devops-github-workflows/register-task-definition@main
@@ -139,6 +139,7 @@ jobs:
           ECS_CLUSTER: ${{ env.PROJECT }}-main-${{ env.ENVIRONMENT }}
           ECS_SERVICE: ${{ env.PROJECT_NAME }}
           TASK_DEFINITION_ARN: ${{ steps.register.outputs.task-definition-arn }}
+          RELEASE_ENVIRONMENT_FILE_ARN: arn:aws:s3:::${{ env.ENV_FILES_BUCKET }}/${{ env.ENV_FILE_PREFIX }}/.env
         run: node apps/api/scripts/migrate-ecs.mjs
       - name: Save migration and rollback references
         if: always()
