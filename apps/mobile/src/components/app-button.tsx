@@ -17,13 +17,10 @@ export function AppButton({
   onBlur,
   onPressIn,
   onPressOut,
-  onHoverIn,
-  onHoverOut,
   ...props
 }: Props) {
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const primary = variant === 'primary';
   // Static styles keep NativeWind's native Pressable interop from dropping the button surface.
   return (
@@ -51,14 +48,6 @@ export function AppButton({
         setPressed(false);
         onPressOut?.(event);
       }}
-      onHoverIn={(event) => {
-        setHovered(true);
-        onHoverIn?.(event);
-      }}
-      onHoverOut={(event) => {
-        setHovered(false);
-        onHoverOut?.(event);
-      }}
       style={[
         {
           minHeight: theme.target,
@@ -84,7 +73,7 @@ export function AppButton({
           outlineOffset: 3,
           outlineColor: theme.colors.white,
         },
-        typeof style === 'function' ? style({ pressed, hovered }) : style,
+        typeof style === 'function' ? style({ pressed }) : style,
       ]}
     >
       <AppText
