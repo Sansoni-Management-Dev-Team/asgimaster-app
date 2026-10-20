@@ -95,14 +95,21 @@ export function InvitationWelcome({
   onAccept,
   notice,
   initialName = '',
+  isolated = false,
+  onSaveName,
 }: {
   onAccept: (name: string) => void;
   notice?: string;
   initialName?: string;
+  isolated?: boolean;
+  onSaveName?: (name: string) => Promise<boolean>;
 }) {
   const invitation = useInvitation();
-  const [name, setName] = useState(invitation.name || initialName);
+  const [sessionName, setSessionName] = useState(initialName);
+  const invitationName = isolated ? sessionName : invitation.name;
+  const [name, setName] = useState((isolated ? '' : invitation.name) || initialName);
   const [error, setError] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const [stage, setStage] = useState<Stage>('approach');
   const [replayCount, setReplayCount] = useState(0);
   const [filmVisible, setFilmVisible] = useState(false);
@@ -142,13 +149,13 @@ export function InvitationWelcome({
       useNativeDriver: true,
     });
     animation.start(({ finished }) => {
-      if (finished && !cancelled) onAccept(invitation.name);
+      if (finished && !cancelled) onAccept(invitationName);
     });
     return () => {
       cancelled = true;
       animation.stop();
     };
-  }, [exitOpacity, exiting, focused, invitation.name, motion.active, motion.reduced, onAccept]);
+  }, [exitOpacity, exiting, focused, invitationName, motion.active, motion.reduced, onAccept]);
 
   useEffect(() => {
     const listener = clock.addListener(({ value }) => {
@@ -172,7 +179,7 @@ export function InvitationWelcome({
       const message =
         stage === 'approach'
           ? 'Your invitation has arrived. Confirm your name to open it.'
-          : `Your letter is open, ${invitation.name}.`;
+          : `Your letter is open, ${invitationName}.`;
       setAnnouncement(message);
       if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(message);
     };
@@ -192,7 +199,7 @@ export function InvitationWelcome({
   }, [
     clock,
     focused,
-    invitation.name,
+    invitationName,
     motion.active,
     motion.ready,
     motion.reduced,
@@ -233,7 +240,8 @@ export function InvitationWelcome({
     setError('');
     setAnnouncement('Invitation animation restarted.');
   }
-  function confirm() {
+  async function confirm() {
+    if (savingName) return;
     const clean = name.trim().replace(/\s+/g, ' ');
     if (!clean || clean.length > 80) {
       setError(
@@ -244,9 +252,21 @@ export function InvitationWelcome({
       input.current?.focus();
       return;
     }
+    if (onSaveName) {
+      setSavingName(true);
+      try {
+        if (!(await onSaveName(clean))) {
+          setError('Your name could not be saved. Please try again.');
+          return;
+        }
+      } finally {
+        setSavingName(false);
+      }
+    }
     Keyboard.dismiss();
     setName(clean);
-    useInvitation.setState({ name: clean });
+    if (isolated) setSessionName(clean);
+    else useInvitation.setState({ name: clean });
     setStage('opening');
   }
   function accept() {
@@ -258,7 +278,7 @@ export function InvitationWelcome({
     <CinemaButton
       label="Replay invitation"
       onPress={replay}
-      disabled={exiting}
+      disabled={exiting || savingName}
       style={{
         ...(exiting ? { opacity: 1 } : {}),
         borderWidth: 1,
@@ -299,7 +319,7 @@ export function InvitationWelcome({
           )}
           <Envelope
             clock={clock}
-            name={invitation.name}
+            name={invitationName}
             opening={stage === 'opening' || stage === 'revealed'}
             revealed={stage === 'revealed'}
             fontLoaded={loaded}
@@ -334,6 +354,7 @@ export function InvitationWelcome({
                 nativeID="invitation-name"
                 inputRef={input}
                 value={name}
+                editable={!savingName}
                 onChangeText={(text) => {
                   setName(text);
                   setError('');
@@ -345,7 +366,12 @@ export function InvitationWelcome({
                 returnKeyType="go"
                 onSubmitEditing={confirm}
               />
-              <CinemaButton solid label="Accept the Envelope" onPress={confirm} />
+              <CinemaButton
+                solid
+                label={savingName ? 'Saving…' : 'Accept the Envelope'}
+                disabled={savingName}
+                onPress={() => void confirm()}
+              />
             </View>
           )}
           {(stage === 'opening' || stage === 'revealed') && (

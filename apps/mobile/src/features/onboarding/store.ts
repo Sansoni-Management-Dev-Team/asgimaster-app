@@ -18,7 +18,7 @@ type Storage = {
 };
 type Result =
   { ok: true; record: OnboardingRecord } | { ok: false; error: string; storage?: boolean };
-type State = {
+export type OnboardingState = {
   record: OnboardingRecord;
   drafts: Partial<Record<Question, string>>;
   hydration: 'idle' | 'loading' | 'ready' | 'failed';
@@ -37,7 +37,7 @@ type State = {
 
 export function createOnboardingStore(storage: Storage) {
   let loading: Promise<void> | null = null;
-  return create<State>((set, get) => ({
+  return create<OnboardingState>((set, get) => ({
     record: emptyRecord(),
     drafts: {},
     hydration: 'idle',
