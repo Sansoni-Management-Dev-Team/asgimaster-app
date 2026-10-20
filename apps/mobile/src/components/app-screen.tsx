@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Head from 'expo-router/head';
 import { AppText } from './app-text';
 import { theme } from '@/theme';
+import { backendConfigured } from '@/lib/api-config';
 
 export function AppScreen({
   children,
@@ -59,7 +60,7 @@ export function AppScreen({
                 <AppText variant="eyebrow" style={{ color: theme.colors.text }}>
                   Master App
                 </AppText>
-                <AppText variant="eyebrow">Demo</AppText>
+                <AppText variant="eyebrow">{backendConfigured ? 'Member access' : 'Demo'}</AppText>
               </View>
             )}
             <View

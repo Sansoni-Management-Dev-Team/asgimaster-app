@@ -15,14 +15,21 @@ export function AppButton({
   style,
   onFocus,
   onBlur,
+  onPressIn,
+  onPressOut,
   ...props
 }: Props) {
   const [focused, setFocused] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const primary = variant === 'primary';
+  // Structural typing supports native and React Native Web's extended callback state.
+  const pressState = { pressed, hovered: false };
+  // Static styles keep NativeWind's native Pressable interop from dropping the button surface.
   return (
     <Pressable
       {...props}
       accessibilityRole="button"
+      accessibilityLabel={props.accessibilityLabel ?? label}
       accessibilityState={{ ...props.accessibilityState, disabled: Boolean(disabled) }}
       aria-disabled={Boolean(disabled)}
       aria-busy={props.accessibilityState?.busy}
@@ -35,7 +42,15 @@ export function AppButton({
         setFocused(false);
         onBlur?.(event);
       }}
-      style={(state) => [
+      onPressIn={(event) => {
+        setPressed(true);
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        setPressed(false);
+        onPressOut?.(event);
+      }}
+      style={[
         {
           minHeight: theme.target,
           minWidth: theme.target,
@@ -53,14 +68,14 @@ export function AppButton({
           backgroundColor:
             disabled || !primary
               ? 'transparent'
-              : state.pressed
+              : pressed
                 ? theme.colors.accentPressed
                 : theme.colors.accent,
           outlineWidth: focused ? 2 : 0,
           outlineOffset: 3,
           outlineColor: theme.colors.white,
         },
-        typeof style === 'function' ? style(state) : style,
+        typeof style === 'function' ? style(pressState) : style,
       ]}
     >
       <AppText

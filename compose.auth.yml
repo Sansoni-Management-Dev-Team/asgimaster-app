@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: sansoni
+      POSTGRES_PASSWORD: local-only
+      POSTGRES_DB: sansoni
+    ports: ['127.0.0.1:${AUTH_DB_PORT:-55439}:5432']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sansoni -d sansoni']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes: [auth-db:/var/lib/postgresql]
+  mailbox:
+    image: axllent/mailpit:v1.29
+    ports: ['127.0.0.1:${AUTH_MAIL_PORT:-58029}:8025', '127.0.0.1:${AUTH_SMTP_PORT:-51029}:1025']
+volumes:
+  auth-db:

@@ -13,6 +13,19 @@ jobs:
   checks:
     name: Lint, typecheck and test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: sansoni
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: sansoni_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U sansoni -d sansoni_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://sansoni:ci-only@127.0.0.1:5432/sansoni_test
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -25,9 +38,25 @@ jobs:
       - run: npm test
 
   api-image:
-    name: Build API image
+    name: Build API and member web image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # Build from the repository root, as in the Sansoni deploy workflow.
       - run: docker build -f apps/api/Dockerfile -t mlai-sansoni-api:ci .
+      - name: Verify member export is packaged and API probes remain independent
+        run: |
+          docker run --rm --entrypoint node mlai-sansoni-api:ci --input-type=module -e "
+            import assert from 'node:assert/strict';
+            import { readFileSync } from 'node:fs';
+            import { app } from './dist/app.js';
+            const html = readFileSync('./public/app/index.html', 'utf8');
+            assert.match(html, /\/app\//);
+            assert.equal((await app.request('/')).status, 200);
+            assert.equal((await app.request('/health')).status, 200);
+            assert.equal((await app.request('/app/')).status, 200);
+            assert.equal((await app.request('/app/sign-in')).status, 200);
+            assert.equal((await app.request('/app/_expo/missing.js')).status, 404);
+            assert.equal((await app.request('/app/__reset-preview.html')).status, 404);
+            assert.equal((await app.request('/v1/me')).status, 401);
+          "

@@ -84,6 +84,7 @@ export function CinemaButton({
   children?: ReactNode;
 }) {
   const [focused, setFocused] = useState(false);
+  const [pressed, setPressed] = useState(false);
   return (
     <Pressable
       onPress={onPress}
@@ -94,7 +95,9 @@ export function CinemaButton({
       aria-disabled={disabled}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={({ pressed }) => [
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      style={[
         {
           minHeight: solid || prominent ? 56 : 48,
           minWidth: 48,

@@ -16,7 +16,7 @@ import { Interlude } from './interlude';
 import { DirectionReview } from './direction-review';
 import { useMotion } from './use-motion';
 import { QuestionReveal, useQuestionEntrance } from './question-entrance';
-import { useOnboarding } from './store';
+import { useOnboarding, type OnboardingState } from './store';
 import {
   fields,
   guardedStep,
@@ -74,6 +74,17 @@ const copy: Record<Question, { title: string; description: string; placeholder?:
 };
 export function OnboardingScreen() {
   const state = useOnboarding();
+  return <OnboardingExperience state={state} />;
+}
+export function OnboardingExperience({
+  state,
+  isolatedInvitation = false,
+  onSaveName,
+}: {
+  state: OnboardingState;
+  isolatedInvitation?: boolean;
+  onSaveName?: (name: string) => Promise<boolean>;
+}) {
   const router = useRouter();
   const navigation = useNavigation<
     NativeStackNavigationProp<{
@@ -283,6 +294,8 @@ export function OnboardingScreen() {
   if (step === 'welcome')
     return (
       <InvitationWelcome
+        isolated={isolatedInvitation}
+        onSaveName={onSaveName}
         notice={state.notice}
         initialName={state.nameDraft || state.record.name}
         onAccept={(name) => {

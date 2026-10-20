@@ -1,0 +1,1 @@
+ALTER TABLE "session" ADD COLUMN "authentication_method" text DEFAULT 'unknown' NOT NULL;

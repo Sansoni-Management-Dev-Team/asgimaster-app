@@ -1,10 +1,10 @@
 # Mobile app
 
-Native iOS and Android member app. Expo + React Native + TypeScript.
+Member app for iOS, Android and browser. Expo + React Native + TypeScript. Start with the [root setup guide](../../README.md#getting-started) to run the real backend, staff website and connected member app together.
 
 ## Requirements
 
-- Node 22 or newer (Node 26 in use)
+- Node 24
 - Xcode for iOS, Android Studio or a JDK for Android
 - Watchman is recommended on macOS: `brew install watchman`
 
@@ -34,9 +34,11 @@ Expo SDK 57, React Native 0.86, React 19.2, Expo Router, NativeWind 4, TanStack 
 
 See the root `AGENTS.md` for conventions and the root `docs/` folder for product context.
 
-## Native migration preview
+## Isolated prototype mode
 
-The native flow now includes Invitation, email validation, an explicitly labelled sign-in demo, seven onboarding questions with validation, Back, answer editing and device-local saved progress, followed by the first native Home screen. No email is sent and no authentication is performed yet. Start it with `npm start`, or use `npm run web` to review the same React Native components in a browser.
+When `EXPO_PUBLIC_API_URL` is absent, the app opens an isolated prototype. The following preview behaviour applies only in that mode. The connected mode described in the root setup guide uses real authentication and account-scoped server saves; its supported screens are Home, Profile and onboarding.
+
+The prototype flow includes Invitation, email validation, an explicitly labelled sign-in demo, seven onboarding questions with validation, Back, answer editing and device-local saved progress, followed by the first native Home screen. In this prototype mode, no email is sent and no authentication is performed. Start it with `npm start`, or use `npm run web` to review the same React Native components in a browser.
 
 Onboarding now follows the confirmed **Concept 2** design: the customer-story video, rotating envelope, name confirmation and handwritten letter, followed by black-and-white question screens. Open `/onboarding?step=welcome` to replay the opening, or choose **Continue to onboarding** after the existing sign-in demonstration.
 
@@ -48,7 +50,7 @@ The six original silent preview videos support playback, seeking, speed, fullscr
 
 Choice questions and industry shortcuts hold the white selection for 500ms, then save and advance automatically; text answers use Continue/Save changes. Every answer is written to AsyncStorage before advancing. Unsent drafts survive Back within the session but not an app restart. Storage is local to this installation, not tied to an account or synced with the separate web prototype. The invitation name stays in session memory only.
 
-The canonical palette and sizing live in `design-system/tokens.css`. Run `npm run tokens:sync` after changing those values; `npm run typecheck` checks that generated native tokens match. See [the migration notes](../../docs/native-migration.md) for scope, validation and the next increments. Real-device accessibility checks remain pending.
+The canonical palette and sizing live in `design-system/tokens.css`. Run `npm run tokens:sync` after changing those values; `npm run typecheck` checks that generated native tokens match. See the [feature specifications](../../docs/features/README.md) for required behaviour. Real-device accessibility checks remain pending.
 
 ## Web design prototype
 

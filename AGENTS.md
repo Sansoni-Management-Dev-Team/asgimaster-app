@@ -32,7 +32,7 @@ Everything in this section is relative to `apps/mobile`.
 
 - API: Hono on Node 24, TypeScript strict, ES modules. Tests use the Node test runner through `tsx`. The container is built from the repository root with `apps/api/Dockerfile`.
 - The load balancer target group checks `GET /`. `GET /health` is also available. Keep both free of database calls.
-- Planned for the API: BetterAuth for auth and Drizzle as the ORM. Neither is installed yet.
+- Use Better Auth for authentication and Drizzle for PostgreSQL persistence and migrations.
 
 Infrastructure is Terragrunt and OpenTofu in `infra/`. The units are in `infra/applications/modules` and the Terraform modules they use are in `infra/modules`, copied from Sansoni's `devops-terraform-modules`. See `infra/README.md`. The current environment is `develop` in AWS account `806968064090`, region `ap-southeast-2`. ECS Fargate runs behind an ALB and uses Aurora PostgreSQL. There is no Redis and no message queue. The `develop` environment uses `asgi.pajamaprofits.net`, which is an internal staging domain. The production domain is not decided yet.
 
@@ -62,4 +62,10 @@ Run these from the repository root.
 
 ## Product context
 
-Product requirements live in the root `docs/` folder. That folder is filled in during the grilling session. Treat `docs/` as the source of truth for what to build.
+Use the native `linear` CLI for Linear work. A repository-root `.linear.toml` can select this repository's workspace using its `workspace` setting; `linear auth login` stores the key in the system keyring. See `docs/linear.md`. Verify the workspace before accessing the backlog; do not assume the global default is this project's workspace.
+
+Product requirements and feature specifications live in `docs/`; feature behaviour and acceptance criteria belong in `docs/features/`. Start with its index and the linked high-level designs. Carry existing agreements forward and keep unresolved product questions explicit rather than restarting architecture selection.
+
+Everything under `docs/` MUST be evergreen: describe the current product requirements, decisions, constraints and operating procedures, not change history, implementation progress, dated handoffs, delivery plans or test-run reports. Do not duplicate facts reflected in implementation or code, including dependency versions, schema/route inventories, configuration defaults, copied code, resource names or command lists. Link to the authoritative implementation where needed. Keep delivery sequencing, accounting and verification evidence in Linear, PRs and thread artifacts outside `docs/`.
+
+Agents must maintain the relevant feature specification as they work. Each fact has one canonical home; link to it instead of copying it across feature specs, HLDDs and overview pages. Distinguish required behaviour from implementation detail and unresolved decisions from agreed requirements. Review delegated work for both feature correctness and compliance with these documentation rules.
