@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { setTimeout } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { and, eq, sql } from 'drizzle-orm';
 import { createApp } from './app.js';
@@ -84,13 +85,19 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
     return token;
   };
   const issueOTP = async (email: string) => {
+    const before = captured.filter((m) => m.to === email && m.subject.includes('code')).length;
     const response = await authRequest('/email-otp/send-verification-otp', {
       email,
       type: 'sign-in',
     });
     assert.equal(response.status, 200);
-    await services.mail.drain(100);
-    return latest(email, 'otp');
+    for (let attempt = 0; attempt < 100; attempt++) {
+      await services.mail.drain(100);
+      if (captured.filter((m) => m.to === email && m.subject.includes('code')).length > before)
+        return latest(email, 'otp');
+      await setTimeout(10);
+    }
+    assert.fail('A fresh queued OTP was not captured');
   };
   const loginOTP = async (email: string) => {
     const otp = await issueOTP(email);
@@ -862,6 +869,63 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
         );
       },
     );
+    await t.test(
+      'session renewal persists expiry and exposes the signed bearer header',
+      async () => {
+        const active = await services.auth.api.getSession({
+          headers: new Headers({ authorization: 'Bearer ' + otherDeviceToken }),
+        });
+        assert.ok(active);
+        await db
+          .update(session)
+          .set({
+            updatedAt: new Date(Date.now() - 2 * 86400000),
+            expiresAt: new Date(Date.now() + 10 * 86400000),
+          })
+          .where(eq(session.id, active.session.id));
+        const renewed = await authRequest('/get-session', undefined, {
+          authorization: 'Bearer ' + otherDeviceToken,
+        });
+        assert.equal(renewed.status, 200);
+        assert.ok(renewed.headers.get('set-auth-token'));
+        const result = (await renewed.json()) as {
+          session: { expiresAt: string; authenticationMethod: string };
+        };
+        assert.ok(new Date(result.session.expiresAt).getTime() > Date.now() + 29 * 86400000);
+        assert.equal(result.session.authenticationMethod, 'magic-link');
+      },
+    );
+    await t.test('production auth emits secure HttpOnly cookie sessions', async () => {
+      const secure = createServices(
+        { ...config, url: 'https://api.example.test', production: true },
+        async (message) => {
+          captured.push(message);
+        },
+      );
+      try {
+        const headers = new Headers({ origin: 'https://api.example.test' });
+        await secure.auth.api.sendVerificationOTP({
+          headers,
+          body: { email: 'staff@example.test', type: 'sign-in' },
+        });
+        await secure.mail.drain(100);
+        const response = await secure.auth.api.signInEmailOTP({
+          headers,
+          body: { email: 'staff@example.test', otp: latest('staff@example.test', 'otp') },
+          asResponse: true,
+        });
+        assert.equal(response.status, 200);
+        const cookie = response.headers
+          .getSetCookie()
+          .find((value) => value.includes('session_token='));
+        assert.ok(cookie);
+        assert.match(cookie, /; Secure/i);
+        assert.match(cookie, /; HttpOnly/i);
+        assert.match(cookie, /; SameSite=Lax/i);
+      } finally {
+        await secure.database.pool.end();
+      }
+    });
     await t.test(
       'sign-out revokes server session; cached profile cannot authorize a 304',
       async () => {

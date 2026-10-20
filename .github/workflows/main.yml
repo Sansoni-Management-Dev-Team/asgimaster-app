@@ -141,10 +141,12 @@ jobs:
           TASK_DEFINITION_ARN: ${{ steps.register.outputs.task-definition-arn }}
         run: node apps/api/scripts/migrate-ecs.mjs
       - name: Save migration and rollback references
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: migration-release-${{ github.sha }}
           path: migration-release.json
+          if-no-files-found: warn
       - name: Update ECS Service
         uses: Sansoni-Management-Dev-Team/devops-github-workflows/update-ecs-service@main
         with:

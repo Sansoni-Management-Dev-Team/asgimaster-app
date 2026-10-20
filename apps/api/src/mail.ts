@@ -80,22 +80,29 @@ export function createMail(
     expiresAt: Date,
     inviteId?: string,
   ) {
+    if (kind === 'otp') {
+      // A rotated code must supersede queued copies before delivery.
+      await database.db
+        .update(outbox)
+        .set({ status: 'cancelled', encryptedPayload: null })
+        .where(
+          and(eq(outbox.userId, userId), eq(outbox.kind, 'otp'), eq(outbox.status, 'pending')),
+        );
+    }
     const [pending] = await database.db
       .select({ id: invites.id })
       .from(invites)
       .innerJoin(memberLogins, eq(invites.memberId, memberLogins.memberId))
       .where(and(eq(memberLogins.userId, userId), eq(invites.status, 'pending')));
     inviteId ??= pending?.id;
-    await database.db
-      .insert(outbox)
-      .values({
-        id: randomUUID(),
-        userId,
-        kind,
-        encryptedPayload: seal(mail) as string,
-        expiresAt,
-        inviteId,
-      });
+    await database.db.insert(outbox).values({
+      id: randomUUID(),
+      userId,
+      kind,
+      encryptedPayload: seal(mail) as string,
+      expiresAt,
+      inviteId,
+    });
   }
   async function drain(limit = 20) {
     let processed = 0;
@@ -116,7 +123,7 @@ export function createMail(
             and(
               eq(outbox.id, candidate.id),
               eq(outbox.status, 'pending'),
-              lte(outbox.nextAttemptAt, sql`now()`),
+              eq(outbox.attempts, candidate.attempts),
             ),
           )
           .limit(1)
