@@ -64,7 +64,16 @@ export function createApp(
       'forwarded',
     ])
       headers.delete(name);
-    const response = await auth.handler(new Request(c.req.raw, { headers }));
+    const authResponse = await auth.handler(new Request(c.req.raw, { headers }));
+    // Returning a native Response bypasses Hono's prepared response headers.
+    // Apply privacy headers directly to every auth response, including exchanges.
+    const authHeaders = new Headers(authResponse.headers);
+    authHeaders.set('Cache-Control', 'no-store');
+    authHeaders.set('Referrer-Policy', 'no-referrer');
+    const response = new Response(authResponse.body, {
+      status: authResponse.status,
+      headers: authHeaders,
+    });
     const location = response.headers.get('location');
     if (location && new URL(location, config.url).searchParams.has('error'))
       return c.json(

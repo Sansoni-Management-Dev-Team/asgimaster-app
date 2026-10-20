@@ -103,6 +103,7 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
     const otp = await issueOTP(email);
     const response = await authRequest('/sign-in/email-otp', { email, otp });
     assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
+    assert.equal(response.headers.get('cache-control'), 'no-store');
     const token = response.headers.get('set-auth-token');
     assert.ok(token);
     return { token, response, otp };
@@ -209,6 +210,7 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
         const response = await authRequest('/magic-link/verify?token=' + encodeURIComponent(magic));
         assert.equal(response.status, 200, JSON.stringify(await response.clone().json()));
         assert.equal(response.headers.get('location'), null);
+        assert.equal(response.headers.get('cache-control'), 'no-store');
         const body = (await response.json()) as {
           token: string;
           session: { token: string };
