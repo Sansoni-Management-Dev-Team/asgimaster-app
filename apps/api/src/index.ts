@@ -9,7 +9,8 @@ const services = createServices(loadConfig());
 const app = createApp({ services, peerAddress: (c) => getConnInfo(c).remote.address });
 const worker = startMailWorker(services);
 const port = Number(process.env.PORT ?? 3000);
-const server = serve({ fetch: app.fetch, port }, (info) =>
+const hostname = process.env.HOST ?? '0.0.0.0';
+const server = serve({ fetch: app.fetch, port, hostname }, (info) =>
   console.log(`API listening on port ${info.port}`),
 );
 async function shutdown() {
