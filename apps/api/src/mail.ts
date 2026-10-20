@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, lte, notInArray, sql } from 'drizzle-orm';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import nodemailer from 'nodemailer';
 import type { Config } from './config.js';
@@ -101,16 +101,25 @@ export function createMail(
       kind,
       encryptedPayload: seal(mail) as string,
       expiresAt,
+      // Fresh work is due immediately, independent of host/VM clock skew.
+      nextAttemptAt: new Date(0),
       inviteId,
     });
   }
   async function drain(limit = 20) {
     let processed = 0;
+    const skipped: string[] = [];
     for (let i = 0; i < limit; i++) {
       const [candidate] = await database.db
         .select()
         .from(outbox)
-        .where(and(eq(outbox.status, 'pending'), lte(outbox.nextAttemptAt, sql`now()`)))
+        .where(
+          and(
+            eq(outbox.status, 'pending'),
+            lte(outbox.nextAttemptAt, sql`clock_timestamp()`),
+            skipped.length ? notInArray(outbox.id, skipped) : undefined,
+          ),
+        )
         .orderBy(outbox.createdAt)
         .limit(1);
       if (!candidate) break;
@@ -174,7 +183,7 @@ export function createMail(
             .set({
               status: failed ? 'failed' : 'pending',
               attempts: row.attempts + 1,
-              nextAttemptAt: new Date(Date.now() + Math.min(60000, 1000 * 2 ** row.attempts)),
+              nextAttemptAt: sql`clock_timestamp() + ${Math.min(60000, 1000 * 2 ** row.attempts)} * interval '1 millisecond'`,
               lastError: 'Mail transport rejected or could not confirm delivery.',
               ...(failed ? { encryptedPayload: null } : {}),
             })
@@ -182,7 +191,12 @@ export function createMail(
         }
         return true;
       });
-      if (!found) break;
+      // Another worker may have claimed or cancelled a candidate while its
+      // identity lock was acquired. Continue so fresh work is not starved.
+      if (!found) {
+        skipped.push(candidate.id);
+        continue;
+      }
       processed++;
     }
     return processed;

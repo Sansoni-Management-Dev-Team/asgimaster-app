@@ -1007,6 +1007,53 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
         }
       },
     );
+    await t.test(
+      'fresh mail is due even when polling uses an older transaction clock',
+      async () => {
+        const producer = createServices(config, async (message) => {
+          captured.push(message);
+        });
+        const email = 'queue-clock@example.test';
+        try {
+          await services.database.transaction(async () => {
+            await db.execute(sql`select now()`);
+            await producer.inviteMember(
+              staffId,
+              email,
+              'Clock fixture',
+              'Transaction clock regression',
+            );
+            await services.mail.drain(100);
+            assert.ok(latest(email, 'otp'));
+            assert.ok(latest(email, 'magic-link'));
+          });
+        } finally {
+          await producer.database.pool.end();
+        }
+      },
+    );
+    await t.test('locked queued mail cannot starve a fresh code in the same drain', async () => {
+      const email = 'queue-lock@example.test',
+        invitation = await invite(email);
+      const [magic] = await db
+        .select()
+        .from(outbox)
+        .where(and(eq(outbox.inviteId, invitation.id), eq(outbox.kind, 'magic-link')));
+      const client = await pool.connect();
+      try {
+        await client.query('begin');
+        await client.query('select id from email_outbox where id=$1 for update', [magic.id]);
+        await services.mail.drain(100);
+        assert.ok(latest(email, 'otp'));
+        const [pendingMagic] = await db.select().from(outbox).where(eq(outbox.id, magic.id));
+        assert.equal(pendingMagic.status, 'pending');
+      } finally {
+        await client.query('rollback');
+        client.release();
+      }
+      await services.mail.drain(100);
+      assert.ok(latest(email, 'magic-link'));
+    });
     await t.test('transaction rollback prevents partial member/invite/outbox writes', async () => {
       const [before] = await db.select({ count: sql<number>`count(*)::int` }).from(members);
       await assert.rejects(() =>
