@@ -57,5 +57,6 @@ jobs:
             assert.equal((await app.request('/app/')).status, 200);
             assert.equal((await app.request('/app/sign-in')).status, 200);
             assert.equal((await app.request('/app/_expo/missing.js')).status, 404);
+            assert.equal((await app.request('/app/__reset-preview.html')).status, 404);
             assert.equal((await app.request('/v1/me')).status, 401);
           "

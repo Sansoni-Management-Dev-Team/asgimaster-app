@@ -10,4 +10,6 @@
 env/
 apps/mobile/ios/
 apps/mobile/android/
+apps/mobile/prototype/
 apps/mobile/prototypes/
+apps/mobile/public/__reset-preview.html
