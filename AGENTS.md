@@ -32,7 +32,7 @@ Everything in this section is relative to `apps/mobile`.
 
 - API: Hono on Node 24, TypeScript strict, ES modules. Tests use the Node test runner through `tsx`. The container is built from the repository root with `apps/api/Dockerfile`.
 - The load balancer target group checks `GET /`. `GET /health` is also available. Keep both free of database calls.
-- Planned for the API: BetterAuth for auth and Drizzle as the ORM. Neither is installed yet.
+- Use Better Auth for authentication and Drizzle for PostgreSQL persistence and migrations.
 
 Infrastructure is Terragrunt and OpenTofu in `infra/`. The units are in `infra/applications/modules` and the Terraform modules they use are in `infra/modules`, copied from Sansoni's `devops-terraform-modules`. See `infra/README.md`. The current environment is `develop` in AWS account `806968064090`, region `ap-southeast-2`. ECS Fargate runs behind an ALB and uses Aurora PostgreSQL. There is no Redis and no message queue. The `develop` environment uses `asgi.pajamaprofits.net`, which is an internal staging domain. The production domain is not decided yet.
 
