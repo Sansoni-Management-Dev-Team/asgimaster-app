@@ -8,6 +8,7 @@ import { createServices, type Services } from './services.js';
 import { memberRoutes } from './member.js';
 import { adminRoutes } from './admin.js';
 import { AppError } from './errors.js';
+import { memberWebRoutes } from './web.js';
 
 function trustedPeer(address: string, cidrs: string[]) {
   return cidrs.some((cidr) => {
@@ -21,7 +22,11 @@ function trustedPeer(address: string, cidrs: string[]) {
   });
 }
 export function createApp(
-  options: { services?: Services; peerAddress?: (c: Context) => string | undefined } = {},
+  options: {
+    services?: Services;
+    peerAddress?: (c: Context) => string | undefined;
+    webRoot?: string;
+  } = {},
 ) {
   const app = new Hono();
   let instance = options.services;
@@ -112,6 +117,7 @@ export function createApp(
   });
   app.route('/v1/me', memberRoutes(services));
   app.route('/admin', adminRoutes(services));
+  app.route('/app', memberWebRoutes(options.webRoot ?? process.env.MEMBER_WEB_ROOT));
   app.notFound((c) => c.json({ error: { code: 'NOT_FOUND', message: 'Route not found.' } }, 404));
   app.onError((error, c) => {
     c.header('Cache-Control', 'no-store');

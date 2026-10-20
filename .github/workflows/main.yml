@@ -6,6 +6,7 @@ on:
     branches: [main, production]
     paths:
       - 'apps/api/**'
+      - 'apps/mobile/**'
       - 'packages/contracts/**'
       - 'package.json'
       - 'package-lock.json'

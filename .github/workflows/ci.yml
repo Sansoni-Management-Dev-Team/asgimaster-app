@@ -38,9 +38,24 @@ jobs:
       - run: npm test
 
   api-image:
-    name: Build API image
+    name: Build API and member web image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # Build from the repository root, as in the Sansoni deploy workflow.
       - run: docker build -f apps/api/Dockerfile -t mlai-sansoni-api:ci .
+      - name: Verify member export is packaged and API probes remain independent
+        run: |
+          docker run --rm --entrypoint node mlai-sansoni-api:ci --input-type=module -e "
+            import assert from 'node:assert/strict';
+            import { readFileSync } from 'node:fs';
+            import { app } from './dist/app.js';
+            const html = readFileSync('./public/app/index.html', 'utf8');
+            assert.match(html, /\/app\//);
+            assert.equal((await app.request('/')).status, 200);
+            assert.equal((await app.request('/health')).status, 200);
+            assert.equal((await app.request('/app/')).status, 200);
+            assert.equal((await app.request('/app/sign-in')).status, 200);
+            assert.equal((await app.request('/app/_expo/missing.js')).status, 404);
+            assert.equal((await app.request('/v1/me')).status, 401);
+          "
