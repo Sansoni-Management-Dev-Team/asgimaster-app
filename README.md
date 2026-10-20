@@ -10,6 +10,10 @@ This repository holds the Sansoni member app and is hosted at [Sansoni-Managemen
 
 The apps are npm workspaces, so there is one `package-lock.json` at the root.
 
+The next delivery is the member API. Start with the [implementation handoff](docs/member-api.md) for the agreed design, current server status, first delivery target and unresolved details, then follow its links to the source HLDDs.
+
+For Linear access, use the native `linear` CLI with a repository `.linear.toml` selecting the workspace and the key stored in the system keyring. See the [Linear CLI setup](docs/linear.md).
+
 ## Getting started
 
 You need Node 22 or newer. Install dependencies once from the root.

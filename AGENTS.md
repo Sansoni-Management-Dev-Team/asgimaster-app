@@ -62,4 +62,8 @@ Run these from the repository root.
 
 ## Product context
 
+Use the native `linear` CLI for Linear work. A repository-root `.linear.toml` can select this repository's workspace using its `workspace` setting; `linear auth login` stores the key in the system keyring. See `docs/linear.md`. Verify the workspace before accessing the backlog; do not assume the global default is this project's workspace.
+
 Product requirements live in the root `docs/` folder. That folder is filled in during the grilling session. Treat `docs/` as the source of truth for what to build.
+
+For the current member API delivery, start with `docs/member-api.md` and its linked HLDDs. It records the existing agreements, current environment, next delivery target and unresolved details. Carry the agreed decisions forward; keep proposed/open details distinct and record any change against the source decision rather than restarting architecture selection. Rodney's infrastructure handoff is complete per Tom (20 October 2026).

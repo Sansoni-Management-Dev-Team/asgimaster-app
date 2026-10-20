@@ -2,6 +2,8 @@
 
 The backend for the member app. It is a TypeScript server built with [Hono](https://hono.dev) and runs on Node in a container.
 
+The member API is the next delivery. Read the [implementation handoff](../../docs/member-api.md) for the agreed design, current status and open details before planning changes.
+
 ## Run it locally
 
 Install dependencies from the repository root first. Then start the server with reload on save.
@@ -41,11 +43,11 @@ The root `.github/workflows/main.yml` follows Sansoni's empireone pattern using 
 The generated S3 environment file contains `PORT=3000` and the database keys that exist in `asgi-secrets-develop`. The API only reads `PORT` today. These are the database key names used by Sansoni's pipeline:
 
 | Key                      | Status                               |
-| ------------------------ | ------------------------------------ |
+| ------------------------ | ------------------------------------- |
 | `DATABASE_MAIN_USERNAME` | Present in the secret configuration. |
 | `DATABASE_MAIN_PASSWORD` | Present in the secret configuration. |
-| `DATABASE_MAIN_HOST`     | Rodney still needs to add it.        |
-| `DATABASE_MAIN_PORT`     | Rodney still needs to add it.        |
-| `DATABASE_MAIN_DATABASE` | Rodney still needs to add it.        |
+| `DATABASE_MAIN_HOST`     | Validate when wiring database access. |
+| `DATABASE_MAIN_PORT`     | Validate when wiring database access. |
+| `DATABASE_MAIN_DATABASE` | Validate when wiring database access. |
 
-The workflow reads the secret by name, so it does not need the generated ARN suffix. The `.env` file uses `asgi-main-develop`, the provisioned S3 bucket. The task execution role can read it. There are no migrations yet. Agree a migration step with Rodney when the database code is added.
+The workflow reads the secret by name, so it does not need the generated ARN suffix. The `.env` file uses `asgi-main-develop`, the provisioned S3 bucket. The task execution role can read it. Rodney's infrastructure handoff is complete per Tom; the health-only API has not demonstrated database access. There are no migrations yet. Agree a migration step with Rodney when the database code is added.

@@ -11,7 +11,7 @@ Our API resolves access, with rules held in `/admin` (D-01, agreed 5 Oct with fi
 ## 2. Requirements covered
 
 | Area | IDs | Phase |
-| --- | --- | --- |
+| ----------------------------------------- | ---------------------------------------------- | ------- |
 | Identity and roster | ACC-04, ADM-02, ADM-03, ADM-04, ENT-07 | 1 |
 | Access | ENT-01, ENT-02, ENT-03, ENT-04, ENT-05, ENT-08 | 1 |
 | Rules, corrections, conformance | ADM-09, ENT-06, ENT-09 | 1 |
@@ -23,7 +23,7 @@ Our API resolves access, with rules held in `/admin` (D-01, agreed 5 Oct with fi
 ## 3. Sources of truth (D-14)
 
 | Question | Answered by |
-| --- | --- |
+| ------------------------------------ | --------------------------------------- |
 | Who is a member? | **Maxio** |
 | Who is this person? | **HubSpot** |
 | Which login belongs to which member? | **Us** — an assertion, not a derivation |
@@ -37,7 +37,7 @@ Klaviyo is not a source. Because Maxio decides membership, members with no HubSp
 **Two kinds of link** between a member and upstream records:
 
 | Kind | What | Stored as |
-| --- | --- | --- |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **Derived** | Deterministic, rebuildable matches: Maxio customers sharing one exact email (171 of 341 have duplicates, up to 12 subscriptions on one address); refs from the client's crosswalk | Recomputed on every refresh; never treated as truth on their own |
 | **Asserted** | A person saying two records are the same member (or not): Mark's 7 adjudicated merges (seeded with method and confidence), and staff link / unlink in `/admin` | `identity_assertions`, append-only: member, record, link or unlink, who, when, why, evidence. A change is a new row |
 
@@ -58,6 +58,7 @@ Current links = derived links, plus asserted links, minus asserted unlinks. Asse
 **Combining sources.** A member's capabilities are the union across their linked subscriptions. Where two grant the same capability, the allowance is the **larger, not the sum**. `UNKNOWN` never becomes zero. Exact merge semantics for mixed allowances follow the conformance suite.
 
 **Rules (ADM-09).** A mapping table in `/admin` turns Maxio products and HubSpot facts into capabilities and a plan label. Rules are versioned and append-only. Every change:
+
 - records who, when and why;
 - shows, before it saves, how many members gain or lose what (computed by running the resolver against current data with the draft rules);
 - triggers a full re-resolve once saved.
@@ -81,7 +82,7 @@ Pure: no I/O, no clock beyond `now`, no randomness. Deterministic — the same i
 ## 6. Freshness
 
 | Trigger | What happens |
-| --- | --- |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Maxio webhook | Re-fetch that customer's **full current subscription set** and re-resolve — never apply the event as a delta (CON-18). A cancellation-only event waits a short settle window first, so an upgrade (cancel + new subscription) doesn't flicker access. |
 | Nightly | Full pull of in-scope Maxio subscriptions and linked HubSpot contacts; roster refreshed; everyone re-resolved. |
 | App open | `/v1/me` answers immediately; a stale result queues a throttled refresh for that member. |
@@ -92,14 +93,16 @@ Needs the read-only Maxio key and webhooks (DEP-26) — now Phase 1 critical pat
 
 ## 7. Failure containment
 
-A mistake in entitlement can be caught in three places. With no staging environment, all three have to be real (numbers are placeholders in D-37).
+A mistake in entitlement can be caught in three places. All three safeguards remain required (numbers are placeholders in D-37). The original no-staging assumption is superseded: `develop` is staging, deployed from `main`; see the [current handoff](../member-api.md).
 
-**Net 1 — before it ships.** No staging (CON-09 dropped). Instead:
-- Rule changes: preview-before-save in `/admin` (§5) — the substitute for staging, not tradeable.
+**Net 1 — before it ships.** Staging now exists; it does not replace these safeguards:
+
+- Rule changes: preview-before-save in `/admin` (§5) remains mandatory.
 - Resolver code changes: a whole-base access diff against current results, reviewed before deploy (CON-25, proposed).
 - Test members are synthetic people with no HubSpot ID, and every HubSpot write is keyed on a linked contact ID, so test activity has nothing to write to (D-34, CON-24). One CX-owned real test contact outside the 341 exercises the write path.
 
 **Net 2 — at resolve time (CON-20, CON-21, CON-22).** Checked before anything resolves:
+
 - Zero rows → abort.
 - Row-count floor: a full pull returning fewer than 97% of the last good pull's subscriptions → abort. A partial pull isn't less data; it's a claim that the missing members hold nothing.
 - An aborted run leaves yesterday's results in place.
@@ -110,6 +113,7 @@ A mistake in entitlement can be caught in three places. With no staging environm
 **Net 3 — at render time (CON-01).** The app keeps the last good `/v1/me`. It's trusted for 7 days without a successful refresh; after that the app falls back to the wind-down view — library kept, events and coaching hidden. Nobody is locked out.
 
 **Gauges (CON-23, PLT-09).** Last-known-good hides outages, and a brake trip is the system working correctly, so neither reaches crash reporting. Three cheap signals, each shown in `/admin` and emailed:
+
 - a synthetic access pull on a test member;
 - the age of the oldest member payload;
 - any held run, with what it held.
@@ -127,17 +131,19 @@ Every resolve run writes a row to `resolve_runs` (trigger, input counts, checks 
 ## 9. Decisions
 
 **Agreed (5 Oct 2026, Mark)**
+
 - D-01: our API resolves, rules in `/admin`, with five conditions — (1) restore rehearsed from a real backup into an empty database before the first invite; (2) rule changes record who / when / why and preview members affected; (3) the client's 24 scenarios are the acceptance suite in our CI; (4) correction expiry mandatory, default 90 days, append-only; (5) reference implementation and suite stay in the client's repo.
 - D-02: Maxio webhooks plus nightly, on-open and manual refresh. The Maxio key is for our API only (the rule is no third-party credential in the app); the nightly pull is a full pull.
 - D-14: Maxio = membership; HubSpot = identity; login ↔ member is ours, as assertions. No Klaviyo. Ambiguous matches never auto-merge.
 
 **Open**
+
 - D-30 partner seats · D-31 conformance suite format · D-34 test members (proposed: synthetic, no HubSpot ID) · D-36 who builds overrides (our `/admin` per D-01, or Mark's console per CX idea 8) · D-37 thresholds · DEP-27 which Maxio / HubSpot fields drive states and rules · settle window length · which Maxio products are "in scope".
 
 ## 10. Constraints
 
 | Constraint | How it's met |
-| --- | --- |
+| ------------------------------- | ---------------------------------------------------------- |
 | CON-01 last-known-good | Failed or empty fetches never downgrade |
 | CON-02 stale data | `source_as_at` tracked; never shown as live billing |
 | CON-04 changes are data | Versioned rules and corrections in `/admin`, with preview |

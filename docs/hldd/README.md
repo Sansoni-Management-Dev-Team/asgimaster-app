@@ -2,9 +2,11 @@
 
 Four short design docs, one per layer. Each covers the functional, non-functional and technical shape of its area, traced back to the V1 requirements workbook (requirement IDs like `ENT-02`, decisions `D-01`, design constraints `CON-01`).
 
+**Current delivery handoff (20 October 2026):** [Member API](../member-api.md). Tom confirmed the infrastructure handoff is complete and the member API is next. That page records the current environment, existing decisions, first delivery target and open dependencies. Read it before starting a new implementation plan; older deployment and no-staging assumptions are superseded there.
+
 | Doc | Covers | Status |
-| --- | --- | --- |
-| [01 — Platform, API and admin](01-platform-api-admin.md) | AWS hosting, the single API, data store, member and staff auth, email, `/admin`, jobs, observability, client read access | Draft v2 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| [01 — Platform, API and admin](01-platform-api-admin.md)      | AWS hosting, the single API, data store, member and staff auth, email, `/admin`, jobs, observability, client read access                          | Draft v5 |
 | [02 — Entitlements and identity](02-entitlements-identity.md) | Sources of truth, linking a person across Maxio and HubSpot, resolving access, freshness, rules and corrections, failure containment, conformance | Draft v2 |
 | [03 — Integrations](03-integrations.md) | HubSpot, Maxio, Intercom, Mux and the content catalogue, events calendars, AaronAI, engagement data | Draft v2 |
 | [04 — Member app](04-member-app.md) | The Expo app: rebuild approach, API client and auth, caching and offline, push, links, video, support, release | Draft v2 |

@@ -1,8 +1,8 @@
 # HLDD 01 — Platform, API and admin
 
-Status: **Draft v4** · Owner: Tom · Updated: 14 Oct 2026
+Status: **Draft v5** · Owner: Tom · Updated: 20 Oct 2026
 
-**Changes in v4.** Sansoni DevOps owns AWS resources and CI/CD. Resources live in `devops-infrastructure-asgi-app`, and the app repository is now `Sansoni-Management-Dev-Team/asgimaster-app`. The API deploy follows Sansoni's empireone pattern with their shared actions. The provisioned environment is `develop`, with ECS tasks in private subnets behind a NAT gateway and Aurora PostgreSQL as the database. There is no Redis and no message queue.
+**Changes in v5.** Infrastructure now lives in this repository under `infra/`, including the Terraform modules. Rodney's handoff is complete, as confirmed by Tom. `develop` is staging, deployed from `main`; the real Hono image is running, with health routes only. The member API is the next delivery. See the [implementation handoff](../member-api.md) for the current baseline and open implementation details. The API deploy continues to follow Sansoni's empireone pattern with their shared actions. There is no Redis and no message queue.
 
 ## 1. Purpose and scope
 
@@ -33,7 +33,7 @@ One Hono API runs as a container on ECS Fargate behind an application load balan
 
 ## 4. Components
 
-**Hosting.** Sansoni's AWS account `806968064090`, `ap-southeast-2` (Sydney). Sansoni DevOps has provisioned `develop`. Staging is defined but not provisioned, and production is not set up. Development also runs locally (Postgres in Docker, Hono dev server, Expo dev client) against third-party sandboxes where they exist. Production rollout remains to be agreed.
+**Hosting.** Sansoni's AWS account `806968064090`, `ap-southeast-2` (Sydney). The provisioned `develop` environment is staging, deployed from `main` at `https://app.asgi.pajamaprofits.net`. The `production` branch targets production; that environment and its domain are not set up yet. The planned local development setup is Postgres in Docker, the Hono dev server and an Expo dev client, against third-party sandboxes where they exist. Production rollout remains to be agreed.
 
 **Compute.** One Hono codebase in `apps/api`, built into one container image and stored in ECR. The image runs in two ways:
 
@@ -93,7 +93,7 @@ Core tables (entitlement tables are defined in 02):
 
 **Client read access (D-05).** A read-only Postgres role with `SELECT` on documented `ops.*` views (members, identities, access, progress, enquiries) — views, not raw tables, so internals can change. Schema doc generated from Drizzle into `docs/`. Connection path still open (see §8).
 
-**Secrets.** Sansoni's `asgi-secrets-develop` holds the database username and password. Rodney still needs to add host, port and database keys. The deploy workflow writes `PORT` and existing database keys to an S3 environment file that ECS loads at startup. The API currently reads only `PORT`. The environment file uses the provisioned `asgi-main-develop` bucket. The execution role can read it. Third-party credential delivery to Sansoni DevOps remains to be agreed. Nothing third-party belongs in the app (CON-03).
+**Secrets.** The deploy workflow reads database settings from Sansoni's `asgi-secrets-develop` and writes `PORT` and existing database keys to an S3 environment file that ECS loads at startup. The API currently reads only `PORT`; validate the required settings and connectivity when implementing database access rather than treating the health check as evidence of it. Rodney's infrastructure handoff is complete per Tom. The environment file uses the provisioned `asgi-main-develop` bucket. The execution role can read it. Third-party credential delivery to Sansoni DevOps remains to be agreed. Nothing third-party belongs in the app (CON-03).
 
 **Observability (CON-10).** Structured JSON logs to CloudWatch (14 days of log retention), Sentry for API and app errors with PII scrubbing, CloudWatch alarms on failed outbox rows, 5xx rate, ECS task restarts and RDS storage / CPU, emailed to MLAI and the client. Separately, data-health gauges (CON-23, PLT-09): a synthetic access pull on a test member, the age of the oldest payload, and held resolve runs — shown in `/admin` and emailed. A brake trip is the system working, so it never reaches crash reporting.
 
@@ -124,11 +124,11 @@ Core tables (entitlement tables are defined in 02):
 ## 7. Constraints
 
 | Constraint                                 | How it's met                                                                                 |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | CON-03 app talks only to our API           | All third-party calls and secrets live in the API                                            |
 | CON-07 writes never block a screen         | Outbox table + poller in the API                                                             |
 | CON-08 every write safe to retry           | Idempotency key per write; unique constraints; upstream idempotency where supported          |
-| CON-09 separate environments               | Sansoni has provisioned `develop`. Staging and production rollout remain to be agreed.       |
+| CON-09 separate environments               | `main` deploys to provisioned `develop` (staging); `production` targets production, still to be set up. |
 | CON-10 error reporting and logs            | Sentry + CloudWatch + alarms                                                                 |
 | CON-14 backups                             | Point-in-time recovery, snapshot before every migration, restore rehearsed before cohort one |
 | CON-23 gauges                              | Canary pull, oldest-payload age, held runs                                                   |
@@ -138,11 +138,17 @@ Core tables (entitlement tables are defined in 02):
 
 **Agreed with Mark (5 Oct 2026)**
 
-- `/admin` (D-03), the D-01 conditions, the Phase 1 slice (D-26), dropping staging in favour of preview-before-save.
+- `/admin` (D-03), the D-01 conditions and the Phase 1 slice (D-26). The original no-staging assumption was superseded by the environment agreement below; preview-before-save remains required.
+
+**Current baseline (20 Oct 2026, Tom; infrastructure work on 18 Oct)**
+
+- Infrastructure and vendored modules live under `infra/` in this repository. Rodney's handoff is complete.
+- `main` deploys to `develop` (staging); `production` is the production branch.
+- The health-only API is deployed. The member API is next; see the [implementation handoff](../member-api.md).
 
 **Agreed with Sansoni (14 Oct 2026)**
 
-Sansoni DevOps owns AWS resources in `devops-infrastructure-asgi-app` and CI/CD follows their shared actions and empireone pattern. The app repository is now `Sansoni-Management-Dev-Team/asgimaster-app`. This replaces the earlier plan to keep Terraform in the app monorepo.
+Historical agreement: Sansoni DevOps owned AWS resources in `devops-infrastructure-asgi-app`, with CI/CD following their shared actions and empireone pattern. Infrastructure location was superseded by the current baseline above; the shared-action deployment pattern remains.
 
 **Made with Sansoni's CTO (8 Oct 2026)**
 
@@ -167,7 +173,7 @@ Sansoni DevOps owns AWS resources in `devops-infrastructure-asgi-app` and CI/CD 
 - Residency approval for the provisioned `ap-southeast-2` region remains to be confirmed with the client.
 - Aurora has one instance. Agree production availability and recovery needs with Sansoni DevOps.
 - Backup retention — 14 days proposed.
-- Testing without staging — proposed (D-34): test members are synthetic people with no HubSpot ID, every HubSpot write is keyed on a linked contact ID (CON-24), and one CX-owned real test contact exercises the write path.
+- Test-member isolation — proposed (D-34): test members are synthetic people with no HubSpot ID, every HubSpot write is keyed on a linked contact ID (CON-24), and one CX-owned real test contact exercises the write path. A staging environment now exists; these proposed isolation rules still need confirmation.
 - D-19 — account deletion route.
 
 ## 9. Risks
