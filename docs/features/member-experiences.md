@@ -51,4 +51,4 @@ Device data is scoped by member and cleared on sign-out. Unread data cannot be o
 
 - D-11: confirm disposition of prototype-only features and fixtures; they must not be mistaken for supported live services.
 - D-18 and D-08: see the [canonical engagement and calendar integration choices](../hldd/03-integrations.md#unresolved-integration-choices).
-- D-26: confirm the final release boundary across the intended features. Delivery sequencing belongs in Linear, not this specification.
+- D-26's agreed release boundary is canonical in the [feature index](README.md#release-scope). Scheduling within that scope belongs in Linear.

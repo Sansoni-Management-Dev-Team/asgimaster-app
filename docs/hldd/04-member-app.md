@@ -28,4 +28,4 @@ Native-device accessibility, media lifecycle, software keyboard and session/link
 
 ## Open choices
 
-Account deletion (D-19), profile/card ownership (D-20/D-21), Home extras (D-10), release boundary (D-26), offboarding (D-09), AaronAI naming/service integration (D-12/D-13) and cache fallback thresholds (D-37) remain with their linked feature/design. Over-the-air update policy, remote configuration ownership, error-reporting approval and minimum supported OS policy require operating/release agreement; configured defaults do not constitute product approval.
+Account deletion (D-19), profile/card ownership (D-20/D-21), Home extras (D-10), offboarding (D-09), AaronAI naming/service integration (D-12/D-13) and cache fallback thresholds (D-37) remain with their linked feature/design. D-26's agreed release scope is canonical in the [feature index](../features/README.md#release-scope). Over-the-air update policy, remote configuration ownership, error-reporting approval and minimum supported OS policy require operating/release agreement; configured defaults do not constitute product approval.

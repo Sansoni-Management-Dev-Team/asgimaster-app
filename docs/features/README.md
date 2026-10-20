@@ -14,6 +14,12 @@ Start here for required member and staff behaviour. These specifications describ
 
 The [high-level designs](../hldd/README.md) explain the agreed platform and integration approach. [Architecture](../architecture.md) shows the system boundaries. [Linear access](../linear.md) describes how to select the correct delivery workspace.
 
+## Release scope
+
+D-26 defines Phase 1 as one member's complete, honest session: invitations and passwordless sign-in, staff administration, Maxio roster and identity/access resolution with its acceptance safeguards, onboarding, Home and Profile, included library playback/captions/progress, Intercom support, enquiries retained in the account and routed to CX, and release readiness including the restore gate. This scope is agreed; delivery sequencing is tracked outside `docs/`.
+
+Phase 1.5 contains the remaining V1 experiences: HubSpot writes, bulk identity review, the no-HubSpot report, catalogue editing and chapters, events, AaronAI, offboarding, push and client read access. Their specifications describe intended V1 behaviour without implying inclusion in Phase 1. Further changes to this scope require an explicit product decision.
+
 ## Reading and maintenance rules
 
 Requirement IDs (`ACC-*`, `ENT-*`, etc.), decisions (`D-*`), constraints (`CON-*`) and dependencies (`DEP-*`) retain their meaning from the V1 requirements workbook. The workbook remains the source of requirement identity; keep any discovered conflict explicit rather than assuming a backlog entry changes an agreement. Do not invent missing workbook content.
