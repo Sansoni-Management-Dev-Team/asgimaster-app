@@ -12,14 +12,15 @@ Requirements: ACC-01, ACC-02, ACC-03, ACC-05, ACC-06, ACC-07; ADM-01, ADM-02, AD
 - Staff select eligible members from the membership roster. CSV may seed identity references; it is not the ongoing membership roster. A deliberately provisioned test identity must remain distinguishable from a live upstream integration.
 - A first invitation is tied to one explicitly linked member and recipient. Staff can see whether it is pending, accepted, expired, revoked or failed to deliver, and can resend or revoke it. A delivery failure must not be shown as successful acceptance.
 - Check invite/member eligibility before sending sign-in credentials and again before issuing a session. An expired or revoked invitation cannot be bypassed using a previously issued link or code. A successfully accepted invitation establishes the returning-member path; it must not require endless re-invitation.
+- Acceptance, revocation and resending must remain consistent under concurrent requests. Revoking or resending a pending invitation invalidates its outstanding credentials and obsolete queued mail; a later re-invitation cannot revive them. An accepted invitation cannot be revoked as though it were still pending.
 - Resending and repeated submissions must not create duplicate memberships or ambiguous login links. Authentication never changes upstream membership or grants capabilities on its own.
 - A linked authenticated member whose access is not configured sees the access-being-set-up state. Lack of resolved capabilities is not evidence that a member's identity is invalid.
 
 ## Member entry and session states
 
-Members can use a magic link or an emailed one-time code. The code is a usable alternative when an email client cannot open the link correctly. An invitation opened without the app installed offers a safe installation/sign-in fallback. Invalid, expired, already-used or revoked credentials produce a recoverable sign-in state. Responses to unknown addresses must not reveal membership or staff status.
+Members can use a magic link or an emailed one-time code. The code is a usable alternative when an email client cannot open the link correctly. An invitation opened without the app installed offers a safe installation/sign-in fallback. Invalid, expired, already-used or revoked credentials produce a recoverable sign-in state. Unknown/ineligible identities and wrong/expired verification failures have the same public failure response, without revealing membership or staff status. A staff-only identity requesting a member magic link receives the generic response and no member credential email.
 
-A valid session survives an ordinary app restart. An expired or revoked session requires sign-in again and cannot continue to authorise protected operations. Sign-out revokes that session and clears credentials, cached member data and member associations with support and push on the device. Switching accounts must never expose the previous member's data. See [common device behaviour](member-experiences.md#common-device-behaviour).
+A valid session survives an ordinary app restart. An expired or revoked session requires sign-in again and cannot continue to authorise protected operations. Sign-out revokes only the presented session; independent sessions on other devices remain valid. It clears credentials, cached member data and member associations with support and push on the device. Switching accounts must never expose the previous member's data. See [common device behaviour](member-experiences.md#common-device-behaviour).
 
 Every member operation derives identity from the authenticated account's explicit member link. A caller-selected member identifier is not authorisation. A staff session without a member link is not a member account. Ambiguous or absent links must fail safely and provide a recovery route.
 
@@ -27,11 +28,15 @@ Sign-in attempts and credential requests are bounded across service instances. C
 
 ## Staff access
 
-Staff are provisioned through a controlled administrative process and sign in by email code. Membership alone grants no staff access; clients cannot choose their own roles. Staff features stay outside the member app (ADM-06). Server-side permissions protect both pages and mutations, with CSRF protection for browser mutations. Every staff mutation records actor, time, target, reason where required, and the change made. Identity and access changes retain the stronger audit requirements in their [feature specification](access-identity.md).
+Staff are provisioned through a controlled administrative process. Entering staff admin requires both staff permission and a browser cookie session proven by email code. A person with both member and staff permissions may use either passwordless method for member access, but a magic-link-issued session cannot enter staff admin. Membership alone grants no staff access; clients cannot choose their own roles. Staff features stay outside the member app (ADM-06). Server-side permissions protect both pages and mutations, with CSRF protection for browser mutations. Every staff mutation records actor, time, target, reason where required, and the change made. Identity and access changes retain the stronger audit requirements in their [feature specification](access-identity.md).
+
+Credential-bearing links carry a one-time verification credential, never a reusable session. The app exchanges it through the approved sign-in flow; web installation/help fallback is separate and credential-free. Obsolete queued codes are cancelled when replaced. Staff can direct the member to request a fresh code rather than treating an expired credential as deliverable.
+
+Transport acceptance is not proof that email reached the inbox. Staff-facing states must distinguish queued/sent work, failures and expiry without implying delivery confirmation.
 
 ## Invitation release gate
 
-D-01 and PLT-07 require a restore rehearsed from a real backup into an empty database **before the first member invitation**. This includes synthetic member invitations; a healthy service or successful local migration is not restore evidence. Isolated captured-mail verification does not satisfy this release gate. Keep the rehearsal evidence outside `docs/`.
+D-01 and PLT-07 require a restore rehearsed from a real backup into an empty database **before the first member invitation**. This includes synthetic member invitations; a healthy service or successful local migration is not restore evidence. Isolated captured-mail verification does not satisfy this release gate. Live email sending, bounce/complaint handling and reviewed secret, trust and network configuration must also be verified before release; local mail capture proves only the local flow. Keep verification evidence outside `docs/`.
 
 The store reviewer has a permanent, fully entitled demo account with a static code that needs no email (PLT-03, CMP-02). This is a bounded reviewer experience, never a general authentication bypass or a way to access real member data.
 
@@ -40,9 +45,9 @@ The store reviewer has a permanent, fully entitled demo account with a static co
 - An invited eligible member can sign in using either supported method, reopen the app and reach their own account.
 - Unknown, uninvited, expired and revoked first-time identities cannot obtain a member session through any exposed authentication entry point. Wrong, expired and replayed credentials fail safely.
 - Two members cannot read or change one another's profile, onboarding or cached data. A staff identity alone cannot impersonate a member.
-- A member cannot access staff operations; unauthorised staff mutations fail and authorised ones are audited.
-- Failed delivery, resend and revoke have truthful, recoverable staff states; retries do not duplicate identities or invitations.
-- Sign-out makes the old session unusable and clears the device's member data and associations.
+- Member permission alone cannot access staff operations. Dual-role member magic sign-in works for member access but fails staff entry; staff entry requires an email-code-proven browser session. Unauthorised staff mutations fail and authorised ones are audited.
+- Failed delivery, resend and revoke have truthful, recoverable staff states. Concurrent actions cannot revive old credentials or duplicate identities/invitations, and transport acceptance is not represented as inbox confirmation.
+- Sign-out makes the presented session unusable and clears that device's member data and associations while leaving independent device sessions valid.
 - The invitation gate has recorded restore evidence before invitations are enabled.
 
 ## Unresolved choices
