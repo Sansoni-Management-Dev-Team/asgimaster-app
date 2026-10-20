@@ -1,31 +1,33 @@
-# Programme off-boarding
+# Programme offboarding
 
-The Phase 2 flow starts only from an explicit **Leave my programme** action below membership access, or from Support's **Membership & billing** topic. There are no automatic expiry, payment-status or inactivity triggers. It concerns leaving the programme, with optional interest in keeping digital app access.
+## Outcome and entry
 
-## Journey
+Requirements: OFF-*, ENQ-01, ENQ-03. A member can ask to discuss leaving their programme, express interest in digital access, and receive an honest request receipt. This journey begins only from an explicit **Leave my programme** action below membership access, or Support's **Membership & billing** topic. Payment status, inactivity and expiry do not automatically start this enquiry.
 
-`/offboarding` holds four internal steps: introduction, optional reason/note, digital-access alternative and callback details. The introduction offers a direct conversation path and a centred Continue with leaving action. Back returns to membership. Reasons can be skipped. Declining the digital alternative advances directly to callback details. The in-flow Back action and Android system Back preserve the draft; leaving without submitting creates no request.
+Source-driven wind-down and after-window access are separate requirements in [access and identity](features/access-identity.md). A leaving enquiry does not cancel membership, alter billing/access, issue a digital plan or delete the account.
 
-The callback form records one of `discuss`, `digital-access` or `leave-programme`. It requires an international phone number (8–15 digits after the plus sign), accepts a preferred time/timezone up to 160 characters and retains the optional reason and note up to 400 characters. Preferred times are requests, not booked slots. No price or specific digital entitlement is invented.
+## Journey and states
 
-Submission and receipt clearly identify this as a local prototype: no callback is arranged and no team member is contacted. Programme membership, access, billing, card ID/expiry and earned activity are unchanged. Resolving the Support conversation only closes that conversation.
+The journey offers an introduction, an optional reason/note, a digital-access alternative and callback details. The introduction includes a direct conversation path as well as Continue with leaving. Reasons can be skipped; declining the digital alternative proceeds to callback details. Do not invent a price or specific digital entitlement.
 
-## Persistence and handoff
+The callback request distinguishes discussing options, interest in digital access and leaving the programme. It requires a valid international phone number and permits a preferred time/timezone. Preferred times are requests, not booked slots. Validation is clear and retains entered information on failure.
 
-Support conversations remain the canonical request records. Optional `offboarding` metadata records intent, reason, note, normalised phone, preferred time and a snapshot of the programme name, membership status and card reference. Existing conversations load unchanged; malformed optional metadata is discarded without losing their messages.
+In-flow Back and Android system Back preserve the draft. Leaving without submission creates no request. A failed submission retains inputs and prior saved state for retry. Repeated or concurrent submissions reuse the existing open request, including one that already has an agent reply. A resolved request permits a new journey.
 
-The shared local store now has an awaited `commit` operation. It queues the storage write, locks concurrent changes, publishes the new state only after success and retains prior state on failure. Callback forms retain their inputs for retry. A second submission reuses an existing open request, including a request with an agent reply. Resolved requests permit a new journey.
+An outstanding request changes the relevant membership/support shortcut to **View callback request**. Re-entry opens its receipt without repeating the retention offer. Receipts open the exact request conversation; navigation references must not expose phone numbers or reasons. A missing receipt target offers recovery rather than silently creating another request.
 
-Membership details and the account-support shortcut show **View callback request** while an open request exists. Re-entry opens its receipt, without repeating the retention offer. Receipts link to the exact Support conversation; routes contain only request IDs, never phone numbers or reasons. Missing receipt links show a recovery action rather than submitting or silently starting another request.
+Resolving the conversation closes the request conversation only. Programme membership, access, billing and earned activity remain unchanged. Any later cancellation or digital-plan provisioning needs its own authorised operating process.
 
-Real callback delivery, scheduling, authenticated member-scoped storage, programme cancellation and digital-plan provisioning require future backend integration. The current request is not an authorization to perform any of those actions.
+## Service boundary and acceptance
 
-## Verification
+Delivery and identity follow [support/enquiry requirements](features/member-experiences.md#support-and-enquiries) and [authentication](features/authentication.md). Local demonstrations must clearly say when no callback is arranged and no team member has been contacted; an on-device receipt alone is not delivery evidence.
 
-- 120 automated tests pass, including all three intents, optional reasons, phone/length validation, Back preservation, failed writes/retry, concurrency guards, duplicate prevention, metadata restoration, legacy compatibility and member/card/access preservation through request resolution.
-- Browser verification covers membership entry, reason selection, the digital option, form validation, keyboard submission, receipt, Support handoff, persisted reload, outstanding-request re-entry and the account-topic shortcut.
-- All five flow screens pass 25 layout audits across 320×568, 360×800, 390×844, 430×932 and 844×390: no horizontal overflow, clipped leaf text or controls smaller than 48×48. Headings receive focus on step changes; keyboard focus is visible and scrolls into view. Screens use static transitions, including under reduced-motion preferences.
-- TypeScript/token consistency and lint are checked. Browser validation exposed and fixed empty-string rendering in shared form fields and stray whitespace in the Support composer container.
-- Device VoiceOver/TalkBack, software keyboard and 200% native text scaling remain unverified. The in-app browser did not apply zoom shortcuts. The accessible browser tree and layout checks do not replace a device accessibility sign-off.
+- Each of the three intents can be submitted with optional reason/note and valid callback details.
+- Back, failed save and retry preserve the draft without creating duplicate requests or changing membership.
+- Outstanding-request entry and receipts recover the correct conversation; closing it allows a fresh enquiry without changing account state.
+- Member-scoped persistence prevents another account from reading callback details or reasons.
+- The flow meets the [shared accessibility requirements](phase-2-visual-alignment.md#accessibility), including native Back, enlarged text, focus and keyboard visibility.
 
-Screenshots are saved under `.expo/qa/offboarding-*.png`.
+## Unresolved choices
+
+D-09 requires agreement on programme exit policy, digital-access offers, CX callback fulfilment and the separate source-driven access windows. D-19 account deletion is a different product decision. The enquiry must remain usable and truthful without assuming those policies are settled.

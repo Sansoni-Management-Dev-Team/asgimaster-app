@@ -1,9 +1,7 @@
-# Linear CLI
+# Linear access
 
-Run `linear auth login` to store the key in Keychain. Put the reported workspace slug in the repo-root `.linear.toml`:
+Use the native Linear CLI for delivery tracking. Before reading or changing backlog records, verify the selected workspace is `mlai-aus`; never assume the global default belongs to this project. The repository workspace selector is authoritative in [the local configuration](../.linear.toml).
 
-```toml
-workspace = "your-workspace-slug"
-```
+Authenticate through the CLI's keyring-backed flow. Keep API keys out of source, documentation and command output; be aware that an exported API key can override keyring credentials. Repository workspace selection must not silently change another project's global workspace.
 
-Verify with `linear auth whoami`, then use normal `linear` commands. The repo setting selects its workspace without changing the global default. An exported `LINEAR_API_KEY` overrides stored credentials.
+Requirements remain in the [feature specifications](features/README.md). Keep delivery sequencing, accounting and verification evidence in Linear, PRs or thread artifacts, without using ticket state as evidence that a product requirement changed.
