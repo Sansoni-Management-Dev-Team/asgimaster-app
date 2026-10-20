@@ -6,11 +6,11 @@ This repository holds the Sansoni member app and is hosted at [Sansoni-Managemen
 | ------------- | ------------------------------------------------------------------- |
 | `apps/mobile` | The iOS and Android app, built with Expo and React Native.          |
 | `apps/api`    | The backend, a TypeScript Hono server that runs in a container.     |
-| `docs`        | Product requirements and design. Start with `docs/architecture.md`. |
+| `docs`        | Product behaviour and design. Start with [feature specifications](docs/features/README.md). |
 
 The apps are npm workspaces, so there is one `package-lock.json` at the root.
 
-The next delivery is the member API. Start with the [implementation handoff](docs/member-api.md) for the agreed design, current server status, first delivery target and unresolved details, then follow its links to the source HLDDs.
+The [feature specifications](docs/features/README.md) describe required behaviour and acceptance criteria. The [high-level designs](docs/hldd/README.md) describe the design choices and constraints that support them.
 
 For Linear access, use the native `linear` CLI with a repository `.linear.toml` selecting the workspace and the key stored in the system keyring. See the [Linear CLI setup](docs/linear.md).
 

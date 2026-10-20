@@ -2,7 +2,7 @@
 
 The backend for the member app. It is a TypeScript server built with [Hono](https://hono.dev) and runs on Node in a container.
 
-The member API is the next delivery. Read the [implementation handoff](../../docs/member-api.md) for the agreed design, current status and open details before planning changes.
+Read the [feature specifications](../../docs/features/README.md) for required behaviour and acceptance criteria, and the [high-level designs](../../docs/hldd/README.md) for design choices and constraints.
 
 ## Run it locally
 
