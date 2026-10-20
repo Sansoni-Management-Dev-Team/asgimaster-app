@@ -10,6 +10,7 @@
     "ios": "npm run ios -w @mlai-sansoni/mobile",
     "android": "npm run android -w @mlai-sansoni/mobile",
     "web": "npm run web -w @mlai-sansoni/mobile",
+    "web:build": "EXPO_PUBLIC_API_URL=same-origin npm exec --workspace @mlai-sansoni/mobile -- expo export --platform web --output-dir ../api/public/app",
     "api:dev": "npm run dev -w @mlai-sansoni/api",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",

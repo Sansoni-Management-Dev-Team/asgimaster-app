@@ -4,7 +4,7 @@ This repository holds the Sansoni member app and is hosted at [Sansoni-Managemen
 
 | Folder        | What it is                                                                                  |
 | ------------- | ------------------------------------------------------------------------------------------- |
-| `apps/mobile` | The iOS and Android app, built with Expo and React Native.                                  |
+| `apps/mobile` | The member app for iOS, Android and browser, built with Expo and React Native.              |
 | `apps/api`    | The backend, a TypeScript Hono server that runs in a container.                             |
 | `docs`        | Product behaviour and design. Start with [feature specifications](docs/features/README.md). |
 
@@ -16,7 +16,7 @@ For Linear access, use the native `linear` CLI with a repository `.linear.toml` 
 
 ## Getting started
 
-There are two interfaces: a **staff website** for invitations, and the **member app** for iOS and Android. Start with the staff website below; you can use it without building the mobile app.
+There are two interfaces: a **staff website** for invitations, and the **member app** for browsers, iOS and Android. Start with the staff website below. You can try both websites without Xcode or an Android emulator.
 
 ### What you need
 
@@ -66,9 +66,21 @@ npm run api:dev
 
 Open [the staff website](http://localhost:8789/admin). Enter `reviewer@example.test` and request a code. Open [the captured-email inbox](http://localhost:58029), find the newest code for that address, and enter it on the staff website.
 
-These example addresses do not have real inboxes. All their messages appear in the captured-email inbox. The website provides the invitation tools; the member Home and Profile are in the native app.
+These example addresses do not have real inboxes. All their messages appear in the captured-email inbox. The staff website provides invitation tools. The member website and native app provide Home, Profile and onboarding.
 
-### Open the member app
+### Open the member app in your browser
+
+Keep the API running. In another terminal at the repository root, build the browser version:
+
+```sh
+npm run web:build
+```
+
+Open [the member website](http://localhost:8789/app/). Sign in as `journey@example.test` using an email code from [the captured-email inbox](http://localhost:58029). No Xcode or separate web server is needed for this version.
+
+You can view Home/Profile and save onboarding answers to the same backend as the native app. The browser version asks you to sign in again after a refresh or reopening; your saved answers remain on your account. Rebuild with `npm run web:build` after changing the app code to update this website.
+
+### Open the native member app
 
 In a second terminal at the repository root, configure the app to use your local API:
 
@@ -94,6 +106,8 @@ After changing `EXPO_PUBLIC_API_URL`, restart the mobile development server. Lea
 ### Starting again and stopping
 
 On later days, start Docker Desktop, run `npm run auth:up`, then keep `npm run api:dev` running in one terminal. Run `npm start` in another and press **i** to open the installed iOS app. Rebuild with `npm run ios` or `npm run android` after native dependency/configuration changes.
+
+For browser-only use, just open the staff/member websites after starting the API. Run `npm run web:build` if you have not built the member website yet or its code has changed.
 
 To stop, press **Ctrl+C** in each development-server terminal, then run:
 

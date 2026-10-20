@@ -4,6 +4,8 @@ The member backend runs as one Hono application with PostgreSQL persistence and 
 
 ## Local development
 
+The [root setup guide](../../README.md#getting-started) walks through the staff website and same-origin member website, including local account creation and the captured-email inbox. The container packages both websites with the API.
+
 Run package commands from the repository root. Install once there, start the isolated Postgres/mailbox services, and create local settings from the [example](.env.example). Keep environment files untracked.
 
 ```sh
