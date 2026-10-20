@@ -1,5 +1,5 @@
 import { expect, it } from '@jest/globals';
-import { validateAPIURL } from './api-config';
+import { validateAPIURL, resolveAPIURL } from './api-config';
 it('accepts an API origin and rejects malformed or credential-bearing configured URLs', () => {
   expect(validateAPIURL('https://members.example.test')).toBe('https://members.example.test');
   expect(validateAPIURL('http://localhost:3000')).toBe('http://localhost:3000');
@@ -11,4 +11,14 @@ it('accepts an API origin and rejects malformed or credential-bearing configured
     'file:///tmp/api',
   ])
     expect(() => validateAPIURL(value)).toThrow();
+});
+it('resolves explicit same-origin browser mode without inheriting a native API URL', () => {
+  expect(resolveAPIURL('same-origin', 'web', 'https://review.example.test')).toBe(
+    'https://review.example.test',
+  );
+  expect(() => resolveAPIURL('same-origin', 'ios', 'https://review.example.test')).toThrow(
+    'requires a browser',
+  );
+  expect(() => resolveAPIURL('same-origin', 'web')).toThrow('unavailable');
+  expect(resolveAPIURL('https://native.example.test', 'ios')).toBe('https://native.example.test');
 });

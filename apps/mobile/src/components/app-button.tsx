@@ -22,6 +22,8 @@ export function AppButton({
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
   const primary = variant === 'primary';
+  // Structural typing supports native and React Native Web's extended callback state.
+  const pressState = { pressed, hovered: false };
   // Static styles keep NativeWind's native Pressable interop from dropping the button surface.
   return (
     <Pressable
@@ -73,7 +75,7 @@ export function AppButton({
           outlineOffset: 3,
           outlineColor: theme.colors.white,
         },
-        typeof style === 'function' ? style({ pressed }) : style,
+        typeof style === 'function' ? style(pressState) : style,
       ]}
     >
       <AppText

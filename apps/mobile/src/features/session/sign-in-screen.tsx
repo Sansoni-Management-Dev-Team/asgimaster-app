@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { TextInput } from 'react-native';
+import { Platform, TextInput } from 'react-native';
 import { loadNativeAuthClient } from './auth-loader';
 import { AppButton } from '@/components/app-button';
 import { AppField } from '@/components/app-field';
@@ -87,18 +87,26 @@ export function MemberSignInScreen() {
               onPress={() => void act('code')}
             />
           )}
-          <AppButton
-            label="Email me a sign-in link"
-            variant="secondary"
-            disabled={busy}
-            onPress={() => void act('magic')}
-          />
+          {Platform.OS !== 'web' && (
+            <AppButton
+              label="Email me a sign-in link"
+              variant="secondary"
+              disabled={busy}
+              onPress={() => void act('magic')}
+            />
+          )}
         </>
       }
     >
       <AppText variant="eyebrow">Member access</AppText>
       <AppText variant="title">Sign in</AppText>
       <AppText variant="muted">Use the email address associated with your invitation.</AppText>
+      {Platform.OS === 'web' && (
+        <AppText variant="muted">
+          Sign in with an email code. Refreshing or reopening this page requires signing in again.
+          Your saved answers stay on your account.
+        </AppText>
+      )}
       <AppField
         nativeID="member-email"
         testID="member-email"

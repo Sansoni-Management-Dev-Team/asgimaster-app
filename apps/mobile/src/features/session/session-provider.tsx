@@ -1,6 +1,13 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useStore } from 'zustand';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { Link, Redirect, useIsFocused } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { backendConfigured } from '@/lib/api-config';
@@ -22,6 +29,19 @@ export function useSessionState() {
 }
 export function SessionBoundary({ children }: { children: ReactNode }) {
   if (!backendConfigured) return children;
+  return Platform.OS === 'web' ? (
+    <BrowserSessionBoundary>{children}</BrowserSessionBoundary>
+  ) : (
+    <ConfiguredSessionBoundary>{children}</ConfiguredSessionBoundary>
+  );
+}
+const subscribeHydration = () => () => {};
+const clientHydration = () => true;
+const serverHydration = () => false;
+function BrowserSessionBoundary({ children }: { children: ReactNode }) {
+  const mounted = useSyncExternalStore(subscribeHydration, clientHydration, serverHydration);
+  // Static export and initial hydration share this shell; credentials are read only on the client.
+  if (!mounted) return <SessionStatus message="Restoring your member session…" />;
   return <ConfiguredSessionBoundary>{children}</ConfiguredSessionBoundary>;
 }
 function ConfiguredSessionBoundary({ children }: { children: ReactNode }) {

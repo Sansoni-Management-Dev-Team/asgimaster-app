@@ -22,3 +22,10 @@ export function validateAPIURL(value: string) {
     throw new Error('Member sign-in requires an HTTPS API URL.');
   return value;
 }
+
+export function resolveAPIURL(value: string, platform: string, browserOrigin?: string) {
+  if (value !== 'same-origin') return validateAPIURL(value);
+  if (platform !== 'web') throw new Error('Same-origin API mode requires a browser.');
+  if (!browserOrigin) throw new Error('The browser API origin is unavailable.');
+  return validateAPIURL(browserOrigin);
+}
