@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, delimiter } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +70,7 @@ process.exit(require('node:child_process').spawnSync('/usr/bin/sed',args,{stdio:
       'BETTER_AUTH_URL',
       'OUTBOX_ENCRYPTION_KEY',
       'MAIL_FROM',
+      'MAIL_FEEDBACK_TO',
       'DATABASE_CA_BASE64',
       'TRUSTED_PROXY_CIDRS',
       'DATABASE_MAIN_DATABASE',
@@ -120,6 +121,26 @@ process.exit(require('node:child_process').spawnSync('/usr/bin/sed',args,{stdio:
           .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]),
       ),
     );
+    if (attempt === 1) {
+      const complete = readFileSync(secret, 'utf8');
+      const missingFeedback = JSON.parse(complete);
+      delete missingFeedback.MAIL_FEEDBACK_TO;
+      writeFileSync(secret, JSON.stringify(missingFeedback));
+      const rejected = spawnSync(
+        'bash',
+        ['-e', '-o', 'pipefail', '-c', workflowRun('Generate and upload .env file')],
+        { cwd: work, env, encoding: 'utf8' },
+      );
+      assert.notEqual(rejected.status, 0);
+      assert.ok(rejected.stdout.includes('Required secret setting is missing: MAIL_FEEDBACK_TO'));
+      assert.equal(
+        existsSync(
+          join(objects, 'bucket', (env as Record<string, string>).ENV_FILE_PREFIX, '.env'),
+        ),
+        false,
+      );
+      writeFileSync(secret, complete);
+    }
     run('Generate and upload .env file');
     run('Update taskdef.json placeholders');
     const definition = JSON.parse(readFileSync(join(work, 'taskdef.json'), 'utf8'));
@@ -128,6 +149,7 @@ process.exit(require('node:child_process').spawnSync('/usr/bin/sed',args,{stdio:
     const key = arn.slice('arn:aws:s3:::'.length);
     const contents = readFileSync(join(objects, key), 'utf8');
     assert.ok(contents.includes(`BETTER_AUTH_SECRET=fixture-${attempt}\n`));
+    assert.ok(contents.includes(`MAIL_FEEDBACK_TO=fixture-${attempt}\n`));
     releases.push({ key, contents });
   }
   assert.notEqual(releases[0].key, releases[1].key);

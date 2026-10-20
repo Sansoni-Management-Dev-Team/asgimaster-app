@@ -67,6 +67,7 @@ jobs:
             BETTER_AUTH_URL
             OUTBOX_ENCRYPTION_KEY
             MAIL_FROM
+            MAIL_FEEDBACK_TO
             DATABASE_CA_BASE64
             TRUSTED_PROXY_CIDRS
             DATABASE_MAIN_DATABASE
