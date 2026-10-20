@@ -15,7 +15,13 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "format": "prettier --write .",
-    "e2e": "npm run e2e -w @mlai-sansoni/mobile --"
+    "e2e": "npm run e2e -w @mlai-sansoni/mobile --",
+    "auth:up": "node apps/api/scripts/local.mjs up",
+    "auth:down": "node apps/api/scripts/local.mjs down",
+    "api:migrate": "npm run db:migrate -w @mlai-sansoni/api",
+    "api:bootstrap": "npm run bootstrap -w @mlai-sansoni/api --",
+    "api:mail": "npm run outbox -w @mlai-sansoni/api",
+    "api:test:integration": "npm run test:integration -w @mlai-sansoni/api"
   },
   "devDependencies": {
     "prettier": "^3.9.6",
