@@ -2,7 +2,8 @@
   "name": "mlai-sansoni",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "start": "npm run start -w @mlai-sansoni/mobile",
