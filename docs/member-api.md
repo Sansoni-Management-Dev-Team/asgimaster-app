@@ -37,6 +37,8 @@ Sources for the handoff: BB thread `thr_h6zenhdtaq` (infrastructure and API depl
 
 ## Next delivery target
 
+The [Better Auth delivery plan](auth-delivery.md) sets out the proposed prerequisites, implementation sequence and observable outcomes for STU-266 and STU-109. It elaborates this baseline; proposed implementation details are not additional product agreements.
+
 The first slice proposed in this thread is database migrations, staff sign-in, an invited test member signing in and an authenticated `GET /v1/me`. Tom has confirmed that the member API is next; the detailed contract and implementation checks below still need to be written against the existing design.
 
 Before implementation, specify the member/auth schema and login linkage, invite lifecycle, `/v1/me` request/response and error contract, staff authorisation, email delivery and migration execution. Keep the contract consistent with HLDD 02's profile, state, plan label, capabilities and access provenance, and HLDD 04's ETag expectation. A test fixture must not be presented as a working Maxio sync or validated access resolver.
