@@ -6,6 +6,7 @@ on:
     branches: [main, production]
     paths:
       - 'apps/api/**'
+      - 'packages/contracts/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/main.yml'
@@ -36,6 +37,15 @@ jobs:
     steps:
       - name: Checkout
         uses: Sansoni-Management-Dev-Team/devops-github-workflows/checkout@main
+      - name: Require reviewed auth release readiness
+        env:
+          AUTH_RELEASE_READY: ${{ vars.AUTH_RELEASE_READY }}
+          RESTORE_REHEARSAL_REFERENCE: ${{ vars.RESTORE_REHEARSAL_REFERENCE }}
+          RDS_CLUSTER_IDENTIFIER: ${{ vars.RDS_CLUSTER_IDENTIFIER }}
+        run: |
+          test "$AUTH_RELEASE_READY" = true || { echo 'Auth release readiness is not approved.'; exit 1; }
+          test -n "$RESTORE_REHEARSAL_REFERENCE" || { echo 'Record the restore rehearsal before release.'; exit 1; }
+          test -n "$RDS_CLUSTER_IDENTIFIER" || { echo 'Set the reviewed database cluster identifier.'; exit 1; }
       - name: Assume Role
         uses: Sansoni-Management-Dev-Team/devops-github-workflows/assume-aws-role@main
         with:
@@ -51,6 +61,12 @@ jobs:
           printf 'PORT=3000\n' > env/.env
 
           SECRET_KEYS=(
+            BETTER_AUTH_SECRET
+            BETTER_AUTH_URL
+            OUTBOX_ENCRYPTION_KEY
+            MAIL_FROM
+            DATABASE_CA_BASE64
+            TRUSTED_PROXY_CIDRS
             DATABASE_MAIN_DATABASE
             DATABASE_MAIN_HOST
             DATABASE_MAIN_PASSWORD
@@ -61,13 +77,18 @@ jobs:
           SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
 
           for key in "${SECRET_KEYS[@]}"; do
-            # Host, port and database are not in the secret yet. Copy only keys
-            # that exist, rather than supplying settings the API does not use.
-            if jq -e --arg k "$key" 'has($k)' <<< "$SECRET_JSON" > /dev/null; then
-              value=$(jq -r --arg k "$key" '.[$k]' <<< "$SECRET_JSON")
-              printf '%s=%s\n' "$key" "$value" >> env/.env
+            if ! jq -e --arg k "$key" '.[$k] | if type == "string" then length > 0 else type == "number" end' <<< "$SECRET_JSON" > /dev/null; then
+              echo "Required secret setting is missing: $key"
+              exit 1
             fi
+            value=$(jq -r --arg k "$key" '.[$k]' <<< "$SECRET_JSON")
+            if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+              echo "Secret setting contains an invalid newline: $key"
+              exit 1
+            fi
+            printf '%s=%s\n' "$key" "$value" >> env/.env
           done
+          printf 'MAIL_TRANSPORT=ses\n' >> env/.env
 
           aws s3 sync env/ "s3://${ENV_FILES_BUCKET}/${ENV_FILE_PREFIX}/" --delete
         env:
@@ -109,6 +130,21 @@ jobs:
           memory: '512'
           execution-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT }}-ecs-task-execution-${{ env.ENVIRONMENT }}
           task-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.PROJECT_NAME }}
+      - name: Snapshot and migrate before updating the service
+        id: migrate
+        env:
+          AUTH_RELEASE_READY: ${{ vars.AUTH_RELEASE_READY }}
+          RESTORE_REHEARSAL_REFERENCE: ${{ vars.RESTORE_REHEARSAL_REFERENCE }}
+          RDS_CLUSTER_IDENTIFIER: ${{ vars.RDS_CLUSTER_IDENTIFIER }}
+          ECS_CLUSTER: ${{ env.PROJECT }}-main-${{ env.ENVIRONMENT }}
+          ECS_SERVICE: ${{ env.PROJECT_NAME }}
+          TASK_DEFINITION_ARN: ${{ steps.register.outputs.task-definition-arn }}
+        run: node apps/api/scripts/migrate-ecs.mjs
+      - name: Save migration and rollback references
+        uses: actions/upload-artifact@v6
+        with:
+          name: migration-release-${{ github.sha }}
+          path: migration-release.json
       - name: Update ECS Service
         uses: Sansoni-Management-Dev-Team/devops-github-workflows/update-ecs-service@main
         with:
