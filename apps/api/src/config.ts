@@ -10,6 +10,7 @@ export type Config = {
   production: boolean;
   trustedProxyCidrs: string[];
   mailFrom: string;
+  mailFeedbackTo?: string;
   mailTransport: 'capture' | 'ses';
   smtpHost: string;
   smtpPort: number;
@@ -63,6 +64,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     production,
     trustedProxyCidrs: (env.TRUSTED_PROXY_CIDRS ?? '').split(',').filter(Boolean),
     mailFrom: z.email().parse(env.MAIL_FROM),
+    mailFeedbackTo: z.email().optional().parse(env.MAIL_FEEDBACK_TO),
     mailTransport,
     smtpHost: env.SMTP_HOST ?? '127.0.0.1',
     smtpPort: Number(env.SMTP_PORT ?? 51029),

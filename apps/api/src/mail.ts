@@ -63,6 +63,9 @@ export function createMail(
       await ses!.send(
         new SendEmailCommand({
           FromEmailAddress: config.mailFrom,
+          ...(config.mailFeedbackTo
+            ? { FeedbackForwardingEmailAddress: config.mailFeedbackTo }
+            : {}),
           Destination: { ToAddresses: [mail.to] },
           Content: {
             Simple: {

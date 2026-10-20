@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { setTimeout } from 'node:timers/promises';
 import { Pool } from 'pg';
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import { and, eq, sql } from 'drizzle-orm';
 import { createApp } from './app.js';
 import type { Config } from './config.js';
@@ -1093,11 +1094,54 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
       }
       assert.equal((await createApp().request('/health')).status, 200);
     });
+    await t.test(
+      'SES command forwards feedback only when configured without changing sender or content',
+      async (t) => {
+        const commands: SendEmailCommand[] = [];
+        t.mock.method(SESv2Client.prototype, 'send', async (command: unknown) => {
+          assert.ok(command instanceof SendEmailCommand);
+          commands.push(command);
+          return { $metadata: {}, MessageId: 'local-sdk-command-proof' };
+        });
+        for (const mailFeedbackTo of [undefined, 'feedback@example.test']) {
+          const ses = createServices({ ...config, mailTransport: 'ses', mailFeedbackTo });
+          try {
+            const email = mailFeedbackTo ? 'ses-feedback@example.test' : 'ses-default@example.test';
+            await ses.identity.bootstrapStaff(email, 'SES command fixture', 'staff');
+            await ses.auth.api.sendVerificationOTP({
+              headers: new Headers({ origin: config.url }),
+              body: { email, type: 'sign-in' },
+            });
+            await ses.mail.drain(100);
+            const command = commands.findLast((item) =>
+              item.input.Destination?.ToAddresses?.includes(email),
+            );
+            assert.ok(command);
+            assert.equal(command.input.FromEmailAddress, config.mailFrom);
+            assert.equal(command.input.FeedbackForwardingEmailAddress, mailFeedbackTo);
+            assert.equal(
+              Object.hasOwn(command.input, 'FeedbackForwardingEmailAddress'),
+              Boolean(mailFeedbackTo),
+            );
+            assert.deepEqual(command.input.Destination?.ToAddresses, [email]);
+            assert.ok(command.input.Content?.Simple?.Subject?.Data?.includes('code'));
+            assert.ok(command.input.Content?.Simple?.Body?.Text?.Data?.includes('code is'));
+            const login = await ses.identity.byEmail(email);
+            const rows = await db.select().from(outbox).where(eq(outbox.userId, login!.id));
+            assert.equal(rows.length, 1);
+            assert.equal(rows[0].status, 'sent');
+            assert.equal(rows[0].encryptedPayload, null);
+          } finally {
+            await ses.database.pool.end();
+          }
+        }
+      },
+    );
     if (process.env.TEST_SMTP_PORT)
       await t.test(
         'real capture SMTP transport delivers a queued invitation to Mailpit',
         async () => {
-          const smtp = createServices(config);
+          const smtp = createServices({ ...config, mailFeedbackTo: 'feedback@example.test' });
           try {
             await smtp.inviteMember(staffId, 'smtp@example.test', 'SMTP capture', 'SMTP proof');
             assert.ok(await smtp.mail.drain(100));

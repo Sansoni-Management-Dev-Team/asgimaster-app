@@ -38,3 +38,19 @@ test('production rejects insecure auth origins, local transport and missing secr
   assert.throws(() => loadConfig({ ...production, MAIL_TRANSPORT: 'capture' }));
   assert.throws(() => loadConfig({ ...production, OUTBOX_ENCRYPTION_KEY: 'short' }));
 });
+
+test('SES feedback address is optional and validates a single email mailbox', () => {
+  assert.equal(loadConfig(production).mailFeedbackTo, undefined);
+  assert.equal(
+    loadConfig({ ...production, MAIL_FEEDBACK_TO: 'feedback@example.test' }).mailFeedbackTo,
+    'feedback@example.test',
+  );
+  for (const address of [
+    '',
+    'invalid',
+    'Name <feedback@example.test>',
+    'a@example.test,b@example.test',
+    'feedback@example.test\nBcc: other@example.test',
+  ])
+    assert.throws(() => loadConfig({ ...production, MAIL_FEEDBACK_TO: address }));
+});
