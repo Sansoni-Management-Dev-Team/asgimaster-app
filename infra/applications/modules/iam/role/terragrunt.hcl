@@ -9,6 +9,20 @@ include "root" {
 locals {
   environment = get_env("TG_VAR_ENVIRONMENT")
 
+  # The staging feedback mailbox is authorized only for this sender/feedback pair.
+  ses_feedback_statements = local.environment == "develop" ? [{
+    Sid      = "SendAuthMailWithStagingFeedback"
+    Effect   = "Allow"
+    Action   = "ses:SendEmail"
+    Resource = "arn:aws:ses:ap-southeast-2:806968064090:identity/tom@chillidonut.com"
+    Condition = {
+      StringEquals = {
+        "ses:FromAddress"     = "no-reply@asgi.pajamaprofits.net"
+        "ses:FeedbackAddress" = "tom@chillidonut.com"
+      }
+    }
+  }] : []
+
   tags_vars = read_terragrunt_config(find_in_parent_folders("tags.hcl"))
   tags      = local.tags_vars.locals[local.environment]
 }
@@ -61,12 +75,12 @@ generate "app_ses_send" {
       role = aws_iam_role.this["app"].id
       policy = jsonencode({
         Version = "2012-10-17"
-        Statement = [{
+        Statement = concat([{
           Sid      = "SendAuthMailFromVerifiedIdentity"
           Effect   = "Allow"
           Action   = "ses:SendEmail"
           Resource = ${jsonencode(dependency.ses.outputs.email_identities["main"].arn)}
-        }]
+        }], ${jsonencode(local.ses_feedback_statements)})
       })
     }
   EOF
