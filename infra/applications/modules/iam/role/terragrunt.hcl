@@ -38,6 +38,39 @@ dependency "permissions" {
   }
 }
 
+# The API sends passwordless mail through the identity managed by the SES unit.
+# Keep this application-specific permission separate from the task execution role.
+dependency "ses" {
+  config_path                             = find_in_parent_folders("modules/ses")
+  mock_outputs_allowed_terraform_commands = ["validate", "init", "plan"]
+  mock_outputs = {
+    email_identities = {
+      main = {
+        arn = "arn:aws:ses:ap-southeast-2:000000000000:identity/example.test"
+      }
+    }
+  }
+}
+
+generate "app_ses_send" {
+  path      = "app_ses_send.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<-EOF
+    resource "aws_iam_role_policy" "app_ses_send" {
+      name = "ses-send-auth-mail"
+      role = aws_iam_role.this["app"].id
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [{
+          Sid      = "SendAuthMailFromVerifiedIdentity"
+          Effect   = "Allow"
+          Action   = "ses:SendEmail"
+          Resource = ${jsonencode(dependency.ses.outputs.email_identities["main"].arn)}
+        }]
+      })
+    }
+  EOF
+}
 
 inputs = {
   config_file = "${get_terragrunt_dir()}/config/config.yml"
