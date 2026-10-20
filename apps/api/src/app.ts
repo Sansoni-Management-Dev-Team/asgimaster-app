@@ -26,7 +26,15 @@ export function createApp(
   const app = new Hono();
   let instance = options.services;
   const services = () => (instance ??= createServices(loadConfig()));
-  app.use('*', secureHeaders());
+  const defaultHeaders = secureHeaders();
+  const staffHeaders = secureHeaders({ referrerPolicy: 'same-origin' });
+  // Basic staff form posts must retain their origin for the strict CSRF check.
+  app.use('*', (c, next) =>
+    (c.req.path === '/admin' || c.req.path.startsWith('/admin/') ? staffHeaders : defaultHeaders)(
+      c,
+      next,
+    ),
+  );
   app.use(
     '*',
     bodyLimit({
