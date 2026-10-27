@@ -6,11 +6,23 @@ import type { Services } from './services.js';
 
 const origin = 'http://localhost:3000';
 function fixture(
-  options: { signedIn?: boolean; role?: string; method?: string; fail?: boolean } = {},
+  options: {
+    signedIn?: boolean;
+    role?: string;
+    method?: string;
+    fail?: boolean;
+    relaxed?: boolean;
+    production?: boolean;
+  } = {},
 ) {
   const calls: unknown[] = [];
   const services = {
-    config: { url: origin, secret: 'isolated-test-secret-at-least-thirty-two-characters' },
+    config: {
+      url: origin,
+      secret: 'isolated-test-secret-at-least-thirty-two-characters',
+      devRelaxAdminCsrf: options.relaxed,
+      production: options.production,
+    },
     auth: {
       api: {
         getSession: async () =>
@@ -47,6 +59,54 @@ function fixture(
   } as unknown as Services;
   return { app: createApp({ services }), calls };
 }
+
+test('relaxed preview admin permits share/localhost origins and missing tokens without bypassing staff permissions', async () => {
+  for (const requestOrigin of [
+    'https://mactom--53187.getbb.app',
+    'http://127.0.0.1:53187',
+    'null',
+    undefined,
+  ]) {
+    const { app, calls } = fixture({ relaxed: true });
+    const response = await app.request('/admin/invites', {
+      method: 'POST',
+      headers: {
+        ...(requestOrigin ? { origin: requestOrigin } : {}),
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        displayName: 'Preview member',
+        email: 'preview@example.test',
+        reason: 'Local preview',
+      }),
+    });
+    assert.equal(response.status, 302);
+    assert.equal(calls.length, 1);
+  }
+  for (const options of [
+    { relaxed: false },
+    { relaxed: true, production: true },
+    { relaxed: true, signedIn: false },
+    { relaxed: true, role: 'user' },
+    { relaxed: true, method: 'magic-link' },
+  ]) {
+    const { app, calls } = fixture(options);
+    const response = await app.request('/admin/invites', {
+      method: 'POST',
+      headers: {
+        origin: 'https://share.example',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        displayName: 'Preview',
+        email: 'preview@example.test',
+        reason: 'Local',
+      }),
+    });
+    assert.equal(response.status, options.signedIn === false ? 302 : 403);
+    assert.equal(calls.length, 0);
+  }
+});
 
 test('public staff assets are explicit, locally packaged and independent of services', async () => {
   const app = createApp();

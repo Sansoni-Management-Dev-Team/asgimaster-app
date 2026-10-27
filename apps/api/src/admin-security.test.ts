@@ -3,6 +3,71 @@ import { test } from 'node:test';
 import { createApp } from './app.js';
 import type { Services } from './services.js';
 
+test('explicit relaxed development allows proxy origins and missing cookies on staff code entry', async () => {
+  let requestedCodes = 0;
+  const app = createApp({
+    services: {
+      config: {
+        url: 'https://share.example',
+        secret: 'isolated-local-test-secret-at-least-thirty-two-chars',
+        production: false,
+        devRelaxAdminCsrf: true,
+      },
+      auth: { api: { sendVerificationOTP: async () => requestedCodes++ } },
+    } as unknown as Services,
+  });
+  for (const origin of ['http://localhost:53187', 'null', undefined]) {
+    const response = await app.request('/admin/sign-in', {
+      method: 'POST',
+      headers: {
+        ...(origin ? { origin } : {}),
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ email: 'preview@example.test' }),
+    });
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /Enter sign-in code/);
+  }
+  assert.equal(requestedCodes, 3);
+});
+
+test('only relaxed internal staff auth calls normalise proxy origins', async () => {
+  for (const relaxed of [false, true]) {
+    const seen: (string | null)[] = [];
+    const app = createApp({
+      services: {
+        config: {
+          url: 'https://share.example',
+          secret: 'isolated-local-test-secret-at-least-thirty-two-chars',
+          production: false,
+          devRelaxAdminCsrf: relaxed,
+        },
+        auth: {
+          api: {
+            getSession: async ({ headers }: { headers: Headers }) => {
+              seen.push(headers.get('origin'));
+              return {
+                user: { id: 'staff', role: 'admin' },
+                session: { authenticationMethod: 'otp' },
+              };
+            },
+          },
+        },
+        identity: { eligible: async () => true },
+        memberDirectory: {
+          list: async () => ({ rows: [], hasNext: false }),
+          sources: async () => [],
+        },
+      } as unknown as Services,
+    });
+    const response = await app.request('/admin/members', {
+      headers: { origin: 'http://localhost:53187' },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(seen, [relaxed ? 'https://share.example' : 'http://localhost:53187']);
+  }
+});
+
 test('staff forms preserve their origin while auth exchanges retain no-referrer', async () => {
   const origin = 'http://localhost:8789';
   let requestedCodes = 0;
