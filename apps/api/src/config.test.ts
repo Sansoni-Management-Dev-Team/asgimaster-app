@@ -13,25 +13,6 @@ const production = {
   DATABASE_URL: 'postgres://user:password@db.example.test/app',
   DATABASE_CA_BASE64: Buffer.from(rootCertificates[0]).toString('base64'),
 };
-test('relaxed admin CSRF is opt-in and confined to capture-mail development', () => {
-  assert.equal(loadConfig(production).devRelaxAdminCsrf, false);
-  const development = { ...production, NODE_ENV: 'development', MAIL_TRANSPORT: 'capture' };
-  assert.equal(loadConfig(development).devRelaxAdminCsrf, false);
-  assert.equal(
-    loadConfig({ ...development, DEV_RELAX_ADMIN_CSRF: 'true' }).devRelaxAdminCsrf,
-    true,
-  );
-  for (const env of [
-    production,
-    { ...development, NODE_ENV: 'test' },
-    { ...development, NODE_ENV: undefined },
-    { ...development, MAIL_TRANSPORT: 'ses' },
-  ])
-    assert.throws(
-      () => loadConfig({ ...env, DEV_RELAX_ADMIN_CSRF: 'true' }),
-      /Relaxed admin CSRF requires/,
-    );
-});
 test('optional membership credentials never prevent startup or imply connected sources', () => {
   assert.deepEqual(loadConfig(production).memberSources, {
     maxioAU: false,

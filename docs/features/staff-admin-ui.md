@@ -46,7 +46,7 @@ Required authentication and invitation behaviour is canonical in [authentication
 
 - Serve pinned htmx and admin CSS from the application's own packaged assets. The admin must not require a runtime CDN connection. Public asset responses contain no staff or member information.
 - Use a restrictive Content Security Policy compatible with the selected htmx configuration. Avoid inline event-handler expressions, evaluated attributes and injected scripts; place any necessary event glue in a small same-origin asset.
-- All complete pages, fragments and mutations retain the staff authentication, permission and CSRF boundaries in [authentication](authentication.md), including its explicit local-development policy. Request headers selecting a fragment are presentation hints, never authority.
+- All complete pages, fragments and mutations retain the same staff authentication, permission and CSRF boundaries. Request headers selecting a fragment are presentation hints, never authority.
 - Protected HTML is not stored in htmx's browser history snapshot cache or other application-controlled persistent browser storage. History restoration revalidates the staff session. Sensitive responses retain private no-store semantics.
 - Escape member-supplied text consistently in documents and fragments. Distinguish complete-document and fragment representations correctly, including history-restore requests and relevant response variation headers.
 - Static assets are available in the packaged runtime and remain independent of database or vendor availability. Health probes retain their existing independent behaviour.

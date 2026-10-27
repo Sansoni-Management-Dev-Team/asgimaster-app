@@ -34,8 +34,6 @@ Staff are provisioned through a controlled administrative process. Entering staf
 
 Credential-bearing links carry a one-time verification credential, never a reusable session. The app exchanges it through the approved sign-in flow; web installation/help fallback is separate and credential-free. Obsolete queued codes are cancelled when replaced. Staff can direct the member to request a fresh code rather than treating an expired credential as deliverable.
 
-Local development with captured email may explicitly relax staff-form origin and CSRF-token validation to support shared preview URLs and localhost access. This mode still requires named staff and email-code-proven sessions for protected operations; it does not relax the public authentication API, member isolation or callback restrictions. It must be opt-in and refused outside development or when real email delivery is configured. Deployed environments retain the strict origin and token checks. The [API configuration](../../apps/api/src/config.ts) defines how the development mode is selected.
-
 Transport acceptance is not proof that email reached the inbox. Staff-facing states must distinguish queued/sent work, failures and expiry without implying delivery confirmation.
 
 ## Invitation release gate

@@ -19,17 +19,6 @@ const same = (a: string, b: string) => {
   return left.length === right.length && timingSafeEqual(left, right);
 };
 export function adminRoutes(services: () => Services) {
-  const staffAuthHeaders = (headers: Headers) => {
-    const { config } = services();
-    if (!config.devRelaxAdminCsrf || config.production) return headers;
-    // Normalise only internal staff auth calls, just like the OTP calls below.
-    // A share proxy may rewrite Origin on reads as well as form submissions.
-    // Public auth API origin/callback validation stays strict.
-    const canonical = new Headers(headers);
-    canonical.set('origin', config.url);
-    canonical.delete('referer');
-    return canonical;
-  };
   const app = new Hono<{
     Variables: { staffId: string; csrf: string; form: Record<string, string | File> };
   }>();
@@ -57,7 +46,7 @@ export function adminRoutes(services: () => Services) {
     }
     c.set('csrf', csrf);
     if (!['/admin/sign-in', '/admin/sign-in/verify'].includes(c.req.path)) {
-      const session = await auth.api.getSession({ headers: staffAuthHeaders(c.req.raw.headers) });
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (!session) {
         // htmx ignores response instructions on redirects. A 200 instruction
         // navigates the entire browser instead of inserting login HTML.
@@ -86,10 +75,9 @@ export function adminRoutes(services: () => Services) {
     if (c.req.method === 'POST') {
       const form = await c.req.parseBody();
       c.set('form', form);
-      const relaxed = config.devRelaxAdminCsrf === true && !config.production;
-      if (!relaxed && c.req.header('origin') !== config.url)
+      if (c.req.header('origin') !== config.url)
         throw new AppError(403, 'CSRF_REJECTED', 'Refresh the form and try again.');
-      if (!relaxed && (typeof form.csrf !== 'string' || !same(csrf, form.csrf))) {
+      if (typeof form.csrf !== 'string' || !same(csrf, form.csrf)) {
         // Valid-origin stale forms recover without performing the mutation. The
         // response carries the current signed-cookie token and retained values.
         const invitation = c.req.path.match(/^\/admin\/invites(?:\/([^/]+)\/(resend|revoke))?$/);
@@ -310,7 +298,7 @@ export function adminRoutes(services: () => Services) {
   app.post('/sign-out', async (c) => {
     const result = await services().database.transaction(async () => {
       const response = await services().auth.api.signOut({
-        headers: staffAuthHeaders(c.req.raw.headers),
+        headers: c.req.raw.headers,
         asResponse: true,
       });
       if (response.ok)

@@ -17,7 +17,6 @@ export type Config = {
   smtpPort: number;
   region: string;
   memberSources?: SourceConfiguration;
-  devRelaxAdminCsrf?: boolean;
 };
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const production = env.NODE_ENV === 'production';
@@ -59,16 +58,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     .enum(['capture', 'ses'])
     .parse(env.MAIL_TRANSPORT ?? (production ? 'ses' : 'capture'));
   if (production && mailTransport !== 'ses') throw new Error('Production requires SES transport');
-  const devRelaxAdminCsrf = env.DEV_RELAX_ADMIN_CSRF === 'true';
-  if (devRelaxAdminCsrf && (env.NODE_ENV !== 'development' || mailTransport !== 'capture'))
-    throw new Error('Relaxed admin CSRF requires NODE_ENV=development and captured mail');
   return {
     database,
     url: url.origin,
     secret,
     outboxKey,
     production,
-    devRelaxAdminCsrf,
     trustedProxyCidrs: (env.TRUSTED_PROXY_CIDRS ?? '').split(',').filter(Boolean),
     mailFrom: z.email().parse(env.MAIL_FROM),
     mailFeedbackTo: z.email().optional().parse(env.MAIL_FEEDBACK_TO),
