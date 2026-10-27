@@ -2,7 +2,7 @@ import type { Context } from 'hono';
 import { html } from 'hono/html';
 
 export const adminCsp =
-  "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+  "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
 export const enhanced = (c: Context) =>
   c.req.header('HX-Request') === 'true' &&
   c.req.header('HX-Request-Type') === 'partial' &&
@@ -10,7 +10,7 @@ export const enhanced = (c: Context) =>
 
 const document = (title: string, content: unknown) =>
   html`<!doctype html>
-    <html lang="en">
+    <html lang="en" data-theme="light">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -19,6 +19,7 @@ const document = (title: string, content: unknown) =>
           content='{"includeIndicatorCSS":false,"mode":"same-origin","history":"reload","defaultTimeout":15000,"implicitInheritance":false}'
         />
         <title>${title} · Sansoni</title>
+        <link rel="stylesheet" href="/staff-assets/pico.min.css" />
         <link rel="stylesheet" href="/staff-assets/admin.css" />
         <script src="/staff-assets/htmx-4.0.0.min.js" defer></script>
         <script src="/staff-assets/admin.js" defer></script>
@@ -27,6 +28,12 @@ const document = (title: string, content: unknown) =>
         <a class="skip-link" href="#main">Skip to content</a>
         <p id="request-status" role="status" aria-live="polite" aria-atomic="true"></p>
         ${content}
+        <dialog id="staff-dialog" aria-labelledby="action-title">
+          <article>
+            <p id="dialog-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div id="staff-dialog-content"></div>
+          </article>
+        </dialog>
       </body>
     </html>`;
 
@@ -34,8 +41,10 @@ const document = (title: string, content: unknown) =>
 export const page = (title: string, content: unknown) =>
   document(
     title,
-    html`<header><a href="/admin/sign-in">Sansoni staff</a></header>
-      <main id="main" tabindex="-1">
+    html`<header class="site-header">
+        <a href="/admin/sign-in" class="brand">Sansoni <small>Staff workspace</small></a>
+      </header>
+      <main id="main" class="auth-page" tabindex="-1">
         <h1>${title}</h1>
         ${content}
       </main>`,
@@ -51,11 +60,16 @@ export function staffPage(c: Context, title: string, content: unknown, csrf: str
     hx-swap:inherited="outerHTML"
     hx-sync:inherited="#staff-view:replace"
   >
-    <header>
-      <a href="/admin">Sansoni staff</a>
+    <header class="site-header">
+      <a href="/admin" class="brand">Sansoni <small>Staff workspace</small></a>
       <nav aria-label="Staff navigation">
         <a href="/admin/members" aria-current="${members ? 'page' : 'false'}">Members</a>
-        <a href="/admin" aria-current="${members ? 'false' : 'page'}">Invitations</a>
+        <a href="/admin" aria-current="${c.req.path === '/admin' ? 'page' : 'false'}"
+          >Invitations</a
+        >
+        <a href="/admin/mail" aria-current="${c.req.path === '/admin/mail' ? 'page' : 'false'}"
+          >Mail delivery</a
+        >
       </nav>
       <form method="post" action="/admin/sign-out" hx-boost="false">
         <input type="hidden" name="csrf" value="${csrf}" /><button class="secondary">

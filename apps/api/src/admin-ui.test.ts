@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createApp } from './app.js';
+import { invitationsView } from './admin-invitations.js';
 import { AppError } from './errors.js';
 import type { Services } from './services.js';
 
@@ -25,6 +26,23 @@ function fixture(
     identity: {
       eligible: async () => true,
       revokeInvite: async (...args: unknown[]) => calls.push(args),
+    },
+    database: {
+      db: {
+        select: () => ({
+          from: () => ({
+            innerJoin: () => ({
+              where: () => ({
+                limit: async () => [
+                  {
+                    member: { displayName: 'Synthetic <member>', email: 'synthetic@example.test' },
+                  },
+                ],
+              }),
+            }),
+          }),
+        }),
+      },
     },
     memberDirectory: {
       list: async () => {
@@ -52,6 +70,7 @@ test('public staff assets are explicit, locally packaged and independent of serv
   const app = createApp();
   for (const [path, type, marker] of [
     ['admin.css', 'text/css', ':root'],
+    ['pico.min.css', 'text/css', 'Pico'],
     ['admin.js', 'text/javascript', 'htmx:before:swap'],
     ['htmx-4.0.0.min.js', 'text/javascript', '4.0.0'],
   ]) {
@@ -322,4 +341,81 @@ test('non-OTP and revoked-staff sessions get authoritative denial after enhanced
     assert.equal(full.headers.get('HX-Redirect'), null);
     assert.match(await full.text(), /Named staff access is required/);
   }
+});
+
+test('action links have complete native pages and explicitly selected dialog fragments', async () => {
+  const { app, calls } = fixture();
+  for (const partial of [false, true]) {
+    const response = await app.request('/admin/invites/new', {
+      headers: partial
+        ? {
+            'HX-Request': 'true',
+            'HX-Request-Type': 'partial',
+            'HX-Target': 'div#staff-dialog-content',
+          }
+        : {},
+    });
+    assert.equal(response.status, 200);
+    const body = await response.text();
+    assert.equal(body.includes('<!doctype html>'), !partial);
+    assert.equal(response.headers.get('X-Staff-Dialog'), partial ? 'true' : null);
+    assert.match(body, /id="action-title"/);
+    assert.match(body, /method="post"/);
+    assert.match(body, /name="csrf"/);
+    assert.match(body, /data-dialog-close/);
+  }
+  const restored = await app.request('/admin/invites/new', {
+    headers: {
+      'HX-Request': 'true',
+      'HX-Request-Type': 'partial',
+      'HX-Target': 'div#staff-dialog-content',
+      'HX-History-Restore-Request': 'true',
+    },
+  });
+  assert.match(await restored.text(), /<!doctype html>/);
+  assert.equal(calls.length, 0);
+  const expired = await fixture({ signedIn: false }).app.request('/admin/invites/new', {
+    headers: { 'HX-Request': 'true' },
+  });
+  assert.equal(expired.headers.get('HX-Redirect'), '/admin/sign-in');
+});
+
+test('invitation rows show direct action links instead of embedding forms', async () => {
+  const body = String(
+    await invitationsView(
+      [
+        {
+          invite: { id: 'synthetic', status: 'pending', expiresAt: new Date('2099-01-01') },
+          member: { id: 'member', displayName: '<Member>', email: 'member@example.test' },
+        },
+      ] as Parameters<typeof invitationsView>[0],
+      '',
+    ),
+  );
+  assert.match(body, /<div class="row-actions"/);
+  assert.match(body, /Resend invitation for &lt;Member&gt;/);
+  assert.match(body, /href="\/admin\/invites\/synthetic\/resend"/);
+  assert.match(body, /hx-target="#staff-dialog-content"/);
+  assert.doesNotMatch(body, /<form|name="reason"|Mail delivery attempts/);
+});
+
+test('reason form GETs escape their record label and cannot mutate an invitation', async () => {
+  const { app, calls } = fixture();
+  for (const action of ['resend', 'revoke']) {
+    const response = await app.request(`/admin/invites/synthetic/${action}`, {
+      headers: {
+        'HX-Request': 'true',
+        'HX-Request-Type': 'partial',
+        'HX-Target': 'div#staff-dialog-content',
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('X-Staff-Dialog'), 'true');
+    const body = await response.text();
+    assert.match(body, /Synthetic &lt;member&gt;/);
+    assert.match(body, /name="reason"/);
+    assert.doesNotMatch(body, /<!doctype/);
+  }
+  assert.equal(calls.length, 0);
+  assert.equal((await app.request('/admin/invites/synthetic/unknown')).status, 404);
 });

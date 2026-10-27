@@ -8,11 +8,14 @@ The admin uses server-rendered semantic HTML, a shared CSS stylesheet and progre
 
 Required authentication and invitation behaviour is canonical in [authentication](authentication.md). Member records, source truth, identity and access policy are canonical in [access and identity](access-identity.md). The platform boundary is in [HLDD 01](../hldd/01-platform-api-admin.md).
 
+For development recipes and source examples, see the [admin UI quick start](../admin-ui.md).
+
 ## Presentation
 
 - Use one consistent staff layout with a clear page title, primary navigation, current-location indication and an accessible sign-out action. Sign-in uses a simpler version of the same visual language.
 - Use a compact, table-oriented presentation: readable typography, restrained colour, subtle borders, clear grouping and generous enough spacing to distinguish records and actions. Prefer useful information density over decorative dashboard cards.
 - Style native headings, links, buttons, labels, inputs, tables, captions and description lists through a small shared stylesheet. Use reusable server-side view helpers where they remove repetition; avoid a parallel client-side component/state framework.
+- Transient loading states must preserve layout: retain current content, reserve space for feedback and keep controls the same size when labels change. A pending button changes its label and becomes disabled without moving nearby controls. Apply this convention across navigation, search and mutations.
 - Distinguish primary, secondary and consequential actions. Explain status in text; colour may reinforce it. Keep operational source state separate from member access and login state.
 - Tables have associated headers and remain usable at narrow widths and enlarged text. Long names, email addresses and references must remain accessible. Any necessary horizontal table scrolling stays within its labelled region.
 - Empty results, unconfigured sources, unavailable data and validation failures have concise explanations and a useful next action. Staff-facing language describes the operation rather than its implementation.
@@ -24,10 +27,12 @@ Required authentication and invitation behaviour is canonical in [authentication
 - Member search supports explicit submission and a debounced typed-search enhancement. A new search starts at the first page. Clearing the search resets the filter and page. Paging retains the current filter.
 - Search and paging use server-rendered result fragments. Cancel or supersede obsolete requests so an older result cannot replace a newer search. Keep stable input identity and preserve typing focus/caret during result updates.
 - Represent completed search and paging state in the canonical URL. Avoid creating a browser-history entry for each keystroke. Restore a complete consistent view on history navigation.
-- Keep the current usable content visible while a request is pending. Announce loading, result changes and recoverable failures without repeatedly interrupting typing or stealing focus.
+- Keep the current usable content visible while a request is pending. Routine loading feedback must not shift the page or flash a replacement view. Announce loading, result changes and recoverable failures without repeatedly interrupting typing or stealing focus.
 
 ## Forms and recovery
 
+- Show available contextual row operations as compact, labelled links directly in the row. Selecting an operation opens a focused dialog identifying the record and action, with the required reason and explicit confirmation. Keep repeated full forms out of table cells. Creating an invitation uses a clear page-level action and the same form interaction.
+- Each dialog form has an ordinary linked page usable without JavaScript. Opening or cancelling a form never changes durable state. Dialogs have accessible names, keyboard dismissal and focus containment; closing restores focus to the originating control or a sensible replacement. While saving, explain and prevent dismissal until the request settles, then restore usable recovery and close controls.
 - Use htmx to enhance existing invitation actions and other staff forms where it improves the workflow. Keep sign-in, verification and sign-out as ordinary browser navigation unless their authentication semantics are explicitly preserved and verified.
 - Preserve entered values on validation or temporary server failure. Associate field errors with inputs and provide a visible summary where useful. Never swap raw API error JSON into the page.
 - Disable the submitted action while its request is pending; provide a visible pending state and restore a usable action after failure. Existing server-side idempotency and concurrency protections remain authoritative.

@@ -9,7 +9,12 @@ import { invites, members, outbox } from './db/schema.js';
 import { AppError } from './errors.js';
 import { isStaff, logAudit } from './identity.js';
 import { adminCsp, enhanced, page, staffPage } from './admin-page.js';
-import { invitationForm, invitationsView, type FormErrors } from './admin-invitations.js';
+import {
+  invitationForm,
+  invitationsView,
+  mailDeliveryView,
+  type FormErrors,
+} from './admin-invitations.js';
 import { APIError } from 'better-auth/api';
 import { memberDirectoryRoutes } from './admin-members.js';
 
@@ -22,6 +27,17 @@ export function adminRoutes(services: () => Services) {
   const app = new Hono<{
     Variables: { staffId: string; csrf: string; form: Record<string, string | File> };
   }>();
+  const invitationSubject = async (id: string) => {
+    if (!id) return '';
+    const [record] = await services()
+      .database.db.select({ member: members })
+      .from(invites)
+      .innerJoin(members, eq(invites.memberId, members.id))
+      .where(eq(invites.id, id))
+      .limit(1);
+    if (!record) throw new AppError(404, 'INVITE_NOT_FOUND', 'Invitation not found.');
+    return `${record.member.displayName} · ${record.member.email}`;
+  };
   app.use('*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
     c.header('Content-Security-Policy', adminCsp);
@@ -90,6 +106,8 @@ export function adminRoutes(services: () => Services) {
             id,
             form,
             'Nothing was saved. This form expired. Your entries are kept; submit again.',
+            {},
+            await invitationSubject(id),
           );
           const key = action === 'create' ? 'invite-create' : `invite-${id}-${action}`;
           if (enhanced(c) && c.req.header('HX-Target') === `div#${key}`) {
@@ -186,6 +204,23 @@ export function adminRoutes(services: () => Services) {
       .innerJoin(members, eq(invites.memberId, members.id))
       .orderBy(desc(invites.createdAt))
       .limit(100);
+    const notices: Record<string, string> = {
+      created:
+        'Invitation saved. Credentials are queued for delivery; membership access has not changed.',
+      resent: 'Invitation resent. Replacement credentials are queued for delivery.',
+      revoked: 'Invitation revoked. Outstanding invitation credentials are no longer valid.',
+    };
+    return c.html(
+      staffPage(
+        c,
+        'Member invitations',
+        invitationsView(rows, notices[c.req.query('notice') ?? ''] ?? ''),
+        c.get('csrf'),
+      ),
+    );
+  });
+  app.get('/mail', async (c) => {
+    const { db } = services().database;
     const messages = await db
       .select({
         id: outbox.id,
@@ -199,20 +234,23 @@ export function adminRoutes(services: () => Services) {
       .from(outbox)
       .orderBy(desc(outbox.createdAt))
       .limit(100);
-    const notices: Record<string, string> = {
-      created:
-        'Invitation saved. Credentials are queued for delivery; membership access has not changed.',
-      resent: 'Invitation resent. Replacement credentials are queued for delivery.',
-      revoked: 'Invitation revoked. Outstanding invitation credentials are no longer valid.',
-    };
-    return c.html(
-      staffPage(
-        c,
-        'Member invitations',
-        invitationsView(c.get('csrf'), rows, messages, notices[c.req.query('notice') ?? ''] ?? ''),
-        c.get('csrf'),
-      ),
-    );
+    return c.html(staffPage(c, 'Mail delivery', mailDeliveryView(messages), c.get('csrf')));
+  });
+  const formPage = async (c: import('hono').Context, action: string, id = '') => {
+    const subject = await invitationSubject(id);
+    const view = invitationForm(c.get('csrf'), action, id, {}, '', {}, subject);
+    if (enhanced(c) && c.req.header('HX-Target') === 'div#staff-dialog-content') {
+      c.header('X-Staff-Dialog', 'true');
+      return c.html(view);
+    }
+    return c.html(staffPage(c, 'Invitation action', view, c.get('csrf')));
+  };
+  app.get('/invites/new', (c) => formPage(c, 'create'));
+  app.get('/invites/:id/:action', (c) => {
+    const action = c.req.param('action');
+    if (!['resend', 'revoke'].includes(action))
+      throw new AppError(404, 'NOT_FOUND', 'Action not found.');
+    return formPage(c, action, c.req.param('id'));
   });
   for (const action of ['create', 'resend', 'revoke'] as const) {
     const path = action === 'create' ? '/invites' : `/invites/:id/${action}`;
@@ -262,7 +300,15 @@ export function adminRoutes(services: () => Services) {
           ? error.message
           : 'Unable to confirm this action. Your entries are kept. Review invitations before trying again.';
         const status = known ? error.status : 503;
-        const view = invitationForm(c.get('csrf'), action, id, form, message, errors);
+        const view = invitationForm(
+          c.get('csrf'),
+          action,
+          id,
+          form,
+          message,
+          errors,
+          await invitationSubject(id),
+        );
         const key = action === 'create' ? 'invite-create' : `invite-${id}-${action}`;
         if (enhanced(c) && c.req.header('HX-Target') === `div#${key}`) {
           c.header('X-Staff-Form', key);

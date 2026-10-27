@@ -12,6 +12,8 @@ The apps are npm workspaces, so there is one `package-lock.json` at the root.
 
 The [feature specifications](docs/features/README.md) describe required behaviour and acceptance criteria. The [high-level designs](docs/hldd/README.md) describe the design choices and constraints that support them.
 
+For staff frontend development, see the [admin UI quick start](docs/admin-ui.md).
+
 For Linear access, use the native `linear` CLI with a repository `.linear.toml` selecting the workspace and the key stored in the system keyring. See the [Linear CLI setup](docs/linear.md).
 
 ## Getting started

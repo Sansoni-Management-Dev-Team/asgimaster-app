@@ -7,6 +7,11 @@ export function adminAssets() {
   const app = new Hono();
   const assets = [
     [
+      '/pico.min.css',
+      new URL('../public/staff/pico.min.css', import.meta.url),
+      'text/css; charset=utf-8',
+    ],
+    [
       '/admin.css',
       new URL('../public/staff/admin.css', import.meta.url),
       'text/css; charset=utf-8',

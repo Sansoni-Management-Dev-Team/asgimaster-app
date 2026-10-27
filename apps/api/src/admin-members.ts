@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { enhanced, staffPage, tableRegion } from './admin-page.js';
 import type { Services } from './services.js';
 import type { SourceState } from './member-sources.js';
+import { dateLabel } from './admin-invitations.js';
 import { AppError } from './errors.js';
 
 const sourceLabels: Record<SourceState['status'], string> = {
@@ -12,14 +13,16 @@ const sourceLabels: Record<SourceState['status'], string> = {
   unavailable: 'Temporarily unavailable',
 };
 const sourceSummary = (sources: SourceState[]) =>
-  html` <h2>Membership and identity sources</h2>
+  html`<details class="source-details">
+    <summary>Membership and identity sources</summary>
     <ul>
       ${sources.map((source) => html`<li>${source.name}: ${sourceLabels[source.status]}</li>`)}
     </ul>
     <p>
       External membership and identity records are not available here yet. Saved accounts remain
       available. No upstream links, subscriptions or access have been inferred.
-    </p>`;
+    </p>
+  </details>`;
 
 const loginStatus = (login: { disabled: boolean; established: boolean } | null) =>
   !login
@@ -56,8 +59,8 @@ export function memberDirectoryRoutes(services: () => Services) {
       '/admin/members?' + new URLSearchParams({ q, page: String(number) });
     const results = html`<section id="member-results" aria-label="Member search results">
       <p data-results-summary>
-        ${result.rows.length} saved accounts shown · page
-        ${pageNumber}${result.hasNext ? ' · more available' : ''}
+        ${result.rows.length} saved ${result.rows.length === 1 ? 'account' : 'accounts'} shown ·
+        page ${pageNumber}${result.hasNext ? ' · more available' : ''}
       </p>
       ${
         result.rows.length
@@ -106,13 +109,13 @@ export function memberDirectoryRoutes(services: () => Services) {
       staffPage(
         c,
         'Members',
-        html` <p>
+        html` <p class="page-description">
             Browse saved member accounts. This list is not the authoritative Maxio membership
             roster; an account or accepted invitation does not establish membership access.
           </p>
           ${sourceSummary(sources)}
-          <h2>Saved member accounts</h2>
           <form
+            class="search-toolbar"
             id="member-search-form"
             method="get"
             action="/admin/members"
@@ -123,8 +126,15 @@ export function memberDirectoryRoutes(services: () => Services) {
             hx-replace-url="true"
             hx-disable="find button"
           >
-            <label for="member-search">Search by name, email or member reference</label>
-            <input id="member-search" name="q" value="${q}" maxlength="254" type="search" />
+            <label for="member-search">Search members</label>
+            <input
+              id="member-search"
+              name="q"
+              value="${q}"
+              maxlength="254"
+              type="search"
+              placeholder="Name, email or member reference"
+            />
             <div class="actions">
               <button>
                 <span class="ready">Search members</span><span class="pending">Searching…</span>
@@ -158,7 +168,7 @@ export function memberDirectoryRoutes(services: () => Services) {
             <dt>Member reference</dt>
             <dd>${member.id}</dd>
             <dt>Account created</dt>
-            <dd>${member.createdAt.toISOString()}</dd>
+            <dd>${dateLabel(member.createdAt)}</dd>
             <dt>Login</dt>
             <dd>${loginStatus(login)}</dd>
           </dl>
@@ -185,11 +195,11 @@ export function memberDirectoryRoutes(services: () => Services) {
                       ${invitations.map(
                         (invite) =>
                           html`<tr>
-                            <td>${invite.createdAt.toISOString()}</td>
+                            <td>${dateLabel(invite.createdAt)}</td>
                             <td>
                               ${invite.status === 'pending' && invite.expiresAt.getTime() <= Date.now() ? 'expired' : invite.status}
                             </td>
-                            <td>${invite.expiresAt.toISOString()}</td>
+                            <td>${dateLabel(invite.expiresAt)}</td>
                           </tr>`,
                       )}
                     </tbody>
