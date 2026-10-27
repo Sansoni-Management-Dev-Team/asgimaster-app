@@ -1,62 +1,44 @@
 # Admin UI quick start
 
-The staff website is HTML rendered by the API. Start with a working link or form; use htmx to replace the relevant part of the page. The server owns permissions, validation and saved state. Small browser behaviours belong in the shared external script.
+Build a working server-rendered page first, then enhance its links and forms with htmx. The server owns permissions, validation and saved state; the shared browser script handles focus, announcements and native dialogs.
 
-For local startup and a fixed browser origin, follow the [repository setup](../README.md#getting-started). Required behaviour is canonical in the [staff interface specification](features/staff-admin-ui.md); invitation and permission rules belong to [authentication](features/authentication.md).
+Follow the [README](../README.md#getting-started) for local startup and a fixed browser origin. Required behaviour lives in the [staff interface specification](features/staff-admin-ui.md) and [authentication specification](features/authentication.md).
 
-## Find an example
+## Start from these examples
 
-- **Page shell and navigation:** [page helpers](../apps/api/src/admin-page.ts). Reuse the shell rather than returning a second document inside a fragment.
-- **Search, paging and detail pages:** [member views](../apps/api/src/admin-members.ts). Keep search inputs outside the replaced results so typing retains focus.
-- **Forms, values and field errors:** [invitation views](../apps/api/src/admin-invitations.ts).
-- **Authorisation, CSRF, response selection and mutations:** [admin handlers](../apps/api/src/admin.ts). Reuse the domain services rather than implementing business rules in templates.
-- **Browser events, recovery and announcements:** [shared script](../apps/api/public/staff/admin.js).
-- **Appearance and asset packaging:** [stylesheet](../apps/api/public/staff/admin.css) and [asset handler](../apps/api/src/admin-assets.ts).
+- [Page helpers](../apps/api/src/admin-page.ts): document shell, navigation and full/partial response selection.
+- [Member views](../apps/api/src/admin-members.ts): URL-based search, paging and details.
+- [Invitation views](../apps/api/src/admin-invitations.ts) and [handlers](../apps/api/src/admin.ts): native form pages, dialog fragments, validation and mutations.
+- [Browser script](../apps/api/public/staff/admin.js), [stylesheet](../apps/api/public/staff/admin.css) and [asset handler](../apps/api/src/admin-assets.ts): shared behaviour, appearance and packaged assets.
 
-Read those examples directly for exact attributes, event payloads and response headers. Keep executable examples in source, rather than copying them into this guide.
+Use those sources for exact attributes, event payloads and response headers; keep executable examples there.
 
-## Styling approach
+## Views and requests
 
-Use locally vendored [Pico CSS](https://picocss.com/docs) as the semantic foundation, with a small application stylesheet for compact tables, toolbars and action controls. Retain its licence and attribution. Pico is [no longer maintained](https://picocss.com/docs/maintenance), so vendoring means owning compatibility and accessibility fixes. The package choice does not replace the interaction requirements in the feature specification.
+Give each replaceable region a stable identity. Keep filters and paging in the URL, and keep search inputs outside the replaced results. Search and paging share a replacement queue so obsolete results cannot win. Mutations use a separate queue that drops duplicate submissions without cancelling a save.
 
-Prefer ordinary HTML elements and a few shared layout classes. Tune component spacing deliberately: large form controls should not dictate table-row height. Keep technical diagnostics and long explanatory content outside the primary working table.
+Our htmx integration uses explicit inheritance: check each request's target, swap and queue rather than assuming it inherits them. Match the server's full/partial selection and safe-error policy. Fragment headers select presentation, never permission. See the [htmx docs](https://four.htmx.org/docs/) for the library API.
 
-Loading is a state of the existing interface. Keep button labels in the same grid cell so both labels contribute to intrinsic width, changing visibility rather than removing a label from layout. Disable the submitted button with htmx's request lifecycle. Keep routine announcements out of document flow, and suppress generic framework spinners on whole content regions. Test dimensions while a request is deliberately delayed, rather than relying on a fast local response.
+## Row actions and reason dialogs
 
-## Recipe: add a view or search
+1. Show available actions as compact, labelled links directly in the row. Include the record in each link's accessible name. Reserve native `details` for supplementary information.
+2. Give each action a GET destination that renders a complete form page. Enhance the link to load that form into the shared dialog host, independently of the navigation queue and without adding a history entry.
+3. Open the native dialog after insertion. Keep its outer element stable; replace only its content. The external script remembers the opener, calls `showModal()` and manages dismissal and focus restoration.
+4. Identify the record and operation, explain the consequence and request the reason. Submit a real POST form with CSRF protection. Reuse the form's scoped error response to retain entries and show validation inside the dialog. Form replacements skip attribute settling so focused inputs retain their displayed values.
+5. After confirmed success, close the dialog and announce the outcome. The invitation handlers refresh the staff view through enhanced navigation; they do not update only the row. Without JavaScript, submission redirects to a complete page.
 
-Build the complete GET page first. Represent filters and paging in its URL, so a copied link or reload returns the same view. Render member text through the existing escaping template helpers.
+Allow Escape and Cancel before submission. During a save, keep keyboard navigation usable, explain pending state and prevent dismissal until the request settles. Restore close/recovery controls after failure. An uncertain outcome calls for reviewing current records, not automatically replaying the mutation.
 
-Give the replaceable region a stable identity. Enhance the link or form with a request, target and swap strategy. The handler must deliberately select a full document or the corresponding fragment. Use the response-selection and variation conventions in the page helpers; fragment headers select presentation, never permission.
+The [htmx modal example](https://htmx.org/examples/modal-custom/) illustrates loading server HTML. Use our native dialog and external-script approach rather than copying its overlay or inline Hyperscript. [Pico](https://picocss.com/docs/modal) supplies styling, not behaviour.
 
-For search, share the existing replacement queue with paging, preserve the input, and let a newer query supersede an older one. For a mutation, use an independent queue that drops duplicate submissions rather than allowing a search or navigation request to cancel a save.
+## Styling and stable loading
 
-## Recipe: row action → reason dialog
+Use vendored Pico with small application overrides. Retain its licence; Pico is [unmaintained](https://picocss.com/docs/maintenance), so we own compatibility fixes. Keep tables compact and diagnostics separate from the main task.
 
-Use this composition for contextual staff actions:
+Both normal and pending button labels occupy the same grid cell and contribute to intrinsic size. Switch visibility and disable the submitted button; do not resize it. Keep routine loading announcements out of document flow and suppress generic busy spinners on whole regions. Preserve existing content while requests run.
 
-1. Show compact, labelled action links directly in the row. Each link identifies both the action and its record for assistive technology. Use native `details` for supplementary explanations, such as source connection information.
-2. Each action has a real GET destination that renders a complete form page. Choosing an action only loads a form; it must not mutate anything.
-3. Enhance that link to load the form into a dedicated dialog host. Keep this request separate from the main view's search/navigation queue and avoid adding a history entry just for opening a dialog.
-4. Use native `dialog` and `showModal()` for the modal layer. Remember the opener and open the dialog after its content is inserted. Put this glue in the external script. Do not add inline handlers, injected scripts or Hyperscript attributes.
-5. Show the record, chosen operation, required reason and any consequence. Submit a real POST form with the normal CSRF field. Cancel and close controls must not submit it.
-6. Replace the form content on validation or recoverable failure, keeping the dialog open and retaining entries. Reuse the existing safe-HTML response policy; a new fragment target must be recognised by both server and browser handling.
-7. After confirmed success, close the dialog, update the affected information and announce the outcome through the shared persistent live region. Restore focus to the opener, or a sensible nearby control if that row disappeared. The native form path redirects to the resulting complete page.
+## Before submitting a change
 
-Keep one dialog host, outside replaceable table rows. Replace its inner form content rather than replacing an open dialog element and losing its modal state. Handle Escape, Cancel and explicit close through the same cleanup path. Allow dismissal before submission; while a save is pending, prevent dismissal while keeping keyboard navigation within the form usable, explain the pending state, and restore dismissal when it settles. After an uncertain network outcome, keep the entered values and offer review rather than automatically resubmitting.
+Check real emitted headers and focus behaviour as well as HTTP tests. Exercise slow requests, errors, stale forms, session expiry and repeated actions. Measure control dimensions during loading. Test complete pages with scripts disabled, populated tables at narrow widths and dialog keyboard behaviour. Keep evidence in the PR or thread artifacts.
 
-The [htmx custom-modal example](https://htmx.org/examples/modal-custom/) demonstrates loading server HTML into a modal. Adapt the concept to our native dialog, external-script CSP and installed htmx API; do not copy its custom overlay or inline scripting. [Pico's dialog](https://picocss.com/docs/modal) provides styling, not the request lifecycle.
-
-## Recipe: handle a response
-
-Follow the existing invitation handlers for successful enhanced navigation, ordinary redirects, validation and stale-token recovery. Keep status codes meaningful. Only explicitly approved staff HTML may replace an error target; a generic API error or sign-in document must not appear inside a dialog.
-
-Our htmx configuration uses explicit inheritance. Do not assume a parent's target, boost, swap or queue applies automatically. Use the installed API's event names and Fetch context, and the server's matching target representation. The [htmx documentation](https://four.htmx.org/docs/) explains requests and swaps; the shared script is authoritative for our integration.
-
-Authentication navigation stays a complete browser navigation. Do not weaken origin or token checks for development: use the fixed-origin setup in the README. Do not introduce a protected-page history cache to make dialogs or Back navigation work.
-
-## Check a new interaction
-
-Exercise the actual browser path as well as HTTP tests: emitted headers and inheritance, keyboard opening/closing, focus after errors and success, repeated actions, slow responses, timeout, session expiry and stale forms. Check the native full-page path with scripts disabled. For actions inside scrollable tables, check narrow layouts; for dialogs, check zoom, focus containment and accessible names. Use populated tables with several actionable rows, not only an empty state.
-
-Keep verification results with the PR or thread artifacts. Keep this guide focused on reusable development conventions.
+Reuse existing auth/CSRF and safe-HTML handling. Keep authentication as full browser navigation, scripts external and protected HTML out of persistent browser caches. Use the README's fixed-origin setup for previews.

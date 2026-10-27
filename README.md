@@ -81,7 +81,7 @@ tailscale status --json
 tailscale serve status
 ```
 
-Set `BETTER_AUTH_URL` in your local API settings to `https://<machine>.<tailnet>.ts.net`, then restart the API. Forward HTTPS to the API's configured loopback port; for the example settings:
+Set `BETTER_AUTH_URL` in your local API settings to `https://<machine>.<tailnet>.ts.net` and `HOST=127.0.0.1` so the API listens only on loopback, then restart it. Forward HTTPS to the API's configured port; for the example settings:
 
 ```sh
 tailscale serve --bg --https=443 http://127.0.0.1:8789
