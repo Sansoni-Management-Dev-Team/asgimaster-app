@@ -11,14 +11,20 @@
     (control ?? document.querySelector('main h1'))?.focus();
   };
   const closeDialog = () => {
-    if (!dialog?.open) return;
-    dialog.close();
+    if (dialog?.open) dialog.close();
+  };
+  // Browser-initiated closes must release Pico's page lock too. The close event
+  // is queued, so preserve any saved-outcome announcement already published.
+  dialog?.addEventListener('close', () => {
+    if (dialog.open) return;
     delete dialog.dataset.pending;
     document.documentElement.classList.remove('modal-is-open');
     document.getElementById('staff-dialog-content').replaceChildren();
-    status('');
+    document.getElementById('dialog-status').textContent = '';
+    const requestStatus = document.getElementById('request-status');
+    if (['Loading…', 'Saving…'].includes(requestStatus?.textContent)) status('');
     restoreFocus();
-  };
+  });
   dialog?.addEventListener('cancel', (event) => {
     event.preventDefault();
     if (!dialog.dataset.pending) closeDialog();

@@ -27,7 +27,7 @@ Our htmx integration uses explicit inheritance: check each request's target, swa
 4. Identify the record and operation, explain the consequence and request the reason. Submit a real POST form with CSRF protection. Reuse the form's scoped error response to retain entries and show validation inside the dialog. Form replacements skip attribute settling so focused inputs retain their displayed values.
 5. After confirmed success, close the dialog and announce the outcome. The invitation handlers refresh the staff view through enhanced navigation; they do not update only the row. Without JavaScript, submission redirects to a complete page.
 
-Allow Escape and Cancel before submission. During a save, keep keyboard navigation usable, explain pending state and prevent dismissal until the request settles. Restore close/recovery controls after failure. An uncertain outcome calls for reviewing current records, not automatically replaying the mutation.
+Allow Escape and Cancel before submission. During a save, keep keyboard navigation usable, explain pending state and block ordinary dismissal until the request settles. A browser-forced close must release the page lock; it does not cancel the mutation. Restore close/recovery controls after failure. An uncertain outcome calls for reviewing current records, not automatically replaying the mutation.
 
 The [htmx modal example](https://htmx.org/examples/modal-custom/) illustrates loading server HTML. Use our native dialog and external-script approach rather than copying its overlay or inline Hyperscript. [Pico](https://picocss.com/docs/modal) supplies styling, not behaviour.
 

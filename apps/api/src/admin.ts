@@ -107,7 +107,7 @@ export function adminRoutes(services: () => Services) {
             form,
             'Nothing was saved. This form expired. Your entries are kept; submit again.',
             {},
-            await invitationSubject(id),
+            await invitationSubject(id).catch(() => id),
           );
           const key = action === 'create' ? 'invite-create' : `invite-${id}-${action}`;
           if (enhanced(c) && c.req.header('HX-Target') === `div#${key}`) {
@@ -307,7 +307,7 @@ export function adminRoutes(services: () => Services) {
           form,
           message,
           errors,
-          await invitationSubject(id),
+          await invitationSubject(id).catch(() => id),
         );
         const key = action === 'create' ? 'invite-create' : `invite-${id}-${action}`;
         if (enhanced(c) && c.req.header('HX-Target') === `div#${key}`) {

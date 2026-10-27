@@ -7,7 +7,13 @@ import type { Services } from './services.js';
 
 const origin = 'http://localhost:3000';
 function fixture(
-  options: { signedIn?: boolean; role?: string; method?: string; fail?: boolean } = {},
+  options: {
+    signedIn?: boolean;
+    role?: string;
+    method?: string;
+    fail?: boolean;
+    failSubject?: boolean;
+  } = {},
 ) {
   const calls: unknown[] = [];
   const services = {
@@ -25,7 +31,10 @@ function fixture(
     },
     identity: {
       eligible: async () => true,
-      revokeInvite: async (...args: unknown[]) => calls.push(args),
+      revokeInvite: async (...args: unknown[]) => {
+        if (options.fail) throw Error('private-database-failure');
+        calls.push(args);
+      },
     },
     database: {
       db: {
@@ -33,11 +42,17 @@ function fixture(
           from: () => ({
             innerJoin: () => ({
               where: () => ({
-                limit: async () => [
-                  {
-                    member: { displayName: 'Synthetic <member>', email: 'synthetic@example.test' },
-                  },
-                ],
+                limit: async () => {
+                  if (options.failSubject) throw Error('private-database-failure');
+                  return [
+                    {
+                      member: {
+                        displayName: 'Synthetic <member>',
+                        email: 'synthetic@example.test',
+                      },
+                    },
+                  ];
+                },
               }),
             }),
           }),
@@ -61,7 +76,10 @@ function fixture(
         );
       calls.push(args);
     },
-    resendInvite: async (...args: unknown[]) => calls.push(args),
+    resendInvite: async (...args: unknown[]) => {
+      if (options.fail) throw Error('private-database-failure');
+      calls.push(args);
+    },
   } as unknown as Services;
   return { app: createApp({ services }), calls };
 }
@@ -418,4 +436,44 @@ test('reason form GETs escape their record label and cannot mutate an invitation
   }
   assert.equal(calls.length, 0);
   assert.equal((await app.request('/admin/invites/synthetic/unknown')).status, 404);
+});
+
+test('failed record-label lookups cannot discard native or enhanced reason-form recovery', async () => {
+  for (const partial of [false, true]) {
+    for (const action of ['resend', 'revoke']) {
+      for (const stale of [false, true]) {
+        const { app, calls } = fixture({ fail: true, failSubject: true });
+        const initial = await app.request('/admin/sign-in');
+        const csrf = (await initial.text()).match(/name="csrf" value="([^"]+)"/)![1];
+        const cookie = initial.headers
+          .getSetCookie()
+          .map((v) => v.split(';')[0])
+          .join('; ');
+        const key = `invite-synthetic-${action}`;
+        const response = await app.request(origin + `/admin/invites/synthetic/${action}`, {
+          method: 'POST',
+          headers: {
+            origin,
+            cookie,
+            'content-type': 'application/x-www-form-urlencoded',
+            ...(partial
+              ? { 'HX-Request': 'true', 'HX-Request-Type': 'partial', 'HX-Target': `div#${key}` }
+              : {}),
+          },
+          body: new URLSearchParams({
+            csrf: stale ? 'expired' : csrf,
+            reason: 'Retain my reason through an outage',
+          }),
+        });
+        assert.equal(response.status, stale ? 403 : 503);
+        const body = await response.text();
+        assert.match(body, /Retain my reason through an outage/);
+        assert.match(body, /synthetic/);
+        assert.doesNotMatch(body, /private-database-failure/);
+        assert.equal(body.includes('<!doctype html>'), !partial);
+        assert.equal(response.headers.get('X-Staff-Form'), partial ? key : null);
+        assert.equal(calls.length, 0);
+      }
+    }
+  }
 });

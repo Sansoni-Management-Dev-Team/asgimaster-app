@@ -4,7 +4,7 @@
 
 Authorised staff can find members, understand their records and complete member operations through a clear browser interface. This specification owns presentation and interaction conventions, including behaviour required of features not yet delivered. It does not establish delivery status.
 
-The admin uses server-rendered semantic HTML, a shared CSS stylesheet and progressive enhancement with htmx. The server owns validation, authorisation and durable state. The interface should remain straightforward to develop and operate as member-management workflows grow. Concrete routes, templates, assets and library versions belong in [the API implementation](../../apps/api/).
+The admin uses server-rendered semantic HTML, a vendored Pico CSS foundation with small application overrides, and progressive enhancement with htmx. The server owns validation, authorisation and durable state. The interface should remain straightforward to develop and operate as member-management workflows grow. Concrete routes, templates, assets and library versions belong in [the API implementation](../../apps/api/).
 
 Required authentication and invitation behaviour is canonical in [authentication](authentication.md). Member records, source truth, identity and access policy are canonical in [access and identity](access-identity.md). The platform boundary is in [HLDD 01](../hldd/01-platform-api-admin.md).
 
@@ -14,7 +14,7 @@ For development recipes and source examples, see the [admin UI quick start](../a
 
 - Use one consistent staff layout with a clear page title, primary navigation, current-location indication and an accessible sign-out action. Sign-in uses a simpler version of the same visual language.
 - Use a compact, table-oriented presentation: readable typography, restrained colour, subtle borders, clear grouping and generous enough spacing to distinguish records and actions. Prefer useful information density over decorative dashboard cards.
-- Style native headings, links, buttons, labels, inputs, tables, captions and description lists through a small shared stylesheet. Use reusable server-side view helpers where they remove repetition; avoid a parallel client-side component/state framework.
+- Style native headings, links, buttons, labels, inputs, tables, captions and description lists through the shared Pico foundation and application stylesheet. Use reusable server-side view helpers where they remove repetition; avoid a parallel client-side component/state framework.
 - Transient loading states must preserve layout: retain current content, reserve space for feedback and keep controls the same size when labels change. A pending button changes its label and becomes disabled without moving nearby controls. Apply this convention across navigation, search and mutations.
 - Distinguish primary, secondary and consequential actions. Explain status in text; colour may reinforce it. Keep operational source state separate from member access and login state.
 - Tables have associated headers and remain usable at narrow widths and enlarged text. Long names, email addresses and references must remain accessible. Any necessary horizontal table scrolling stays within its labelled region.
@@ -32,7 +32,7 @@ For development recipes and source examples, see the [admin UI quick start](../a
 ## Forms and recovery
 
 - Show available contextual row operations as compact, labelled links directly in the row. Selecting an operation opens a focused dialog identifying the record and action, with the required reason and explicit confirmation. Keep repeated full forms out of table cells. Creating an invitation uses a clear page-level action and the same form interaction.
-- Each dialog form has an ordinary linked page usable without JavaScript. Opening or cancelling a form never changes durable state. Dialogs have accessible names, keyboard dismissal and focus containment; closing restores focus to the originating control or a sensible replacement. While saving, explain and prevent dismissal until the request settles, then restore usable recovery and close controls.
+- Each dialog form has an ordinary linked page usable without JavaScript. Opening or cancelling a form never changes durable state. Dialogs have accessible names, keyboard dismissal and focus containment; closing restores focus to the originating control or a sensible replacement. While saving, explain pending state and block ordinary dismissal until the request settles, then restore usable recovery and close controls. A browser-forced close must release the page lock and must not imply that the mutation was cancelled.
 - Use htmx to enhance existing invitation actions and other staff forms where it improves the workflow. Keep sign-in, verification and sign-out as ordinary browser navigation unless their authentication semantics are explicitly preserved and verified.
 - Preserve entered values on validation or temporary server failure. Associate field errors with inputs and provide a visible summary where useful. Never swap raw API error JSON into the page.
 - Disable the submitted action while its request is pending; provide a visible pending state and restore a usable action after failure. Existing server-side idempotency and concurrency protections remain authoritative.
