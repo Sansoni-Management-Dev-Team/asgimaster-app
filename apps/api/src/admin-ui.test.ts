@@ -169,7 +169,7 @@ test('staff errors remain scoped HTML, preserve values and status, and enforce o
             ? {
                 'HX-Request': 'true',
                 'HX-Request-Type': 'partial',
-                'HX-Target': 'section#invite-create',
+                'HX-Target': 'div#invite-create',
               }
             : {}),
           ...extra,
@@ -199,7 +199,7 @@ test('staff errors remain scoped HTML, preserve values and status, and enforce o
     for (const action of ['resend', 'revoke']) {
       const result = await post(
         { reason: 'A real reason' },
-        enhanced ? { 'HX-Target': `section#invite-synthetic-${action}` } : {},
+        enhanced ? { 'HX-Target': `div#invite-synthetic-${action}` } : {},
         `/admin/invites/synthetic/${action}`,
       );
       assert.equal(result.status, enhanced ? 204 : 302);
@@ -222,7 +222,7 @@ test('unexpected staff failures conceal sensitive exceptions and preserve a retr
         .join('; '),
       'HX-Request': 'true',
       'HX-Request-Type': 'partial',
-      'HX-Target': 'section#invite-create',
+      'HX-Target': 'div#invite-create',
       'content-type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams({
@@ -273,7 +273,7 @@ test('expired or replaced CSRF cookies return retained invitation forms with a u
               ? {
                   'HX-Request': 'true',
                   'HX-Request-Type': 'partial',
-                  'HX-Target': `section#${key}`,
+                  'HX-Target': `div#${key}`,
                 }
               : {}),
           },

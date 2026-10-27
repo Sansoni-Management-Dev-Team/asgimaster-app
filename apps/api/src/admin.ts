@@ -92,7 +92,7 @@ export function adminRoutes(services: () => Services) {
             'Nothing was saved. This form expired. Your entries are kept; submit again.',
           );
           const key = action === 'create' ? 'invite-create' : `invite-${id}-${action}`;
-          if (enhanced(c) && c.req.header('HX-Target') === `section#${key}`) {
+          if (enhanced(c) && c.req.header('HX-Target') === `div#${key}`) {
             c.header('X-Staff-Form', key);
             return c.html(view, 403);
           }
@@ -264,7 +264,7 @@ export function adminRoutes(services: () => Services) {
         const status = known ? error.status : 503;
         const view = invitationForm(c.get('csrf'), action, id, form, message, errors);
         const key = action === 'create' ? 'invite-create' : `invite-${id}-${action}`;
-        if (enhanced(c) && c.req.header('HX-Target') === `section#${key}`) {
+        if (enhanced(c) && c.req.header('HX-Target') === `div#${key}`) {
           c.header('X-Staff-Form', key);
           return c.html(view, status);
         }

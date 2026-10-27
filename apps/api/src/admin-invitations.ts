@@ -28,8 +28,9 @@ export function invitationForm(
         aria-describedby="${key}-${name}-error"
       />
       <small id="${key}-${name}-error" class="field-error">${errors[name] ?? ''}</small>`;
-  return html`<section
+  return html`<div
     id="${key}"
+    role="group"
     aria-label="${action === 'create' ? 'Invite a member' : action === 'resend' ? 'Resend invitation' : 'Revoke invitation'}"
   >
     ${message ? html`<div class="error-summary" tabindex="-1" role="alert"><p>${message}</p></div>` : ''}
@@ -51,7 +52,7 @@ export function invitationForm(
         ><span class="pending">Saving…</span>
       </button>
     </form>
-  </section>`;
+  </div>`;
 }
 
 export function invitationsView(

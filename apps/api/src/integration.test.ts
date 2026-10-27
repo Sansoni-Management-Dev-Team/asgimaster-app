@@ -804,7 +804,7 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
             'content-type': 'application/x-www-form-urlencoded',
             'HX-Request': 'true',
             'HX-Request-Type': 'partial',
-            'HX-Target': `section#${target}`,
+            'HX-Target': `div#${target}`,
           },
           body: new URLSearchParams({ csrf, ...values }),
         });
