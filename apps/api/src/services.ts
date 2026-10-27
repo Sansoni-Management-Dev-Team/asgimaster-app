@@ -6,12 +6,18 @@ import { createMail, type Transport } from './mail.js';
 import { createAuth } from './auth.js';
 import { invites, memberLogins, members } from './db/schema.js';
 import { AppError } from './errors.js';
+import { createMemberDirectory } from './member-directory.js';
+import { createMemberSources } from './member-sources.js';
 
 export function createServices(config: Config, transport?: Transport) {
   const database = createDatabase(config.database);
   const identity = createIdentity(database);
   const mail = createMail(database, identity, config, transport);
   const auth = createAuth(database, identity, mail, config);
+  const memberDirectory = createMemberDirectory(
+    database,
+    createMemberSources(config.memberSources),
+  );
   async function inviteMember(
     actorId: string,
     email: string,
@@ -72,6 +78,6 @@ export function createServices(config: Config, transport?: Transport) {
     if (!member) throw new AppError(404, 'INVITE_NOT_FOUND', 'Invitation not found.');
     return inviteMember(actorId, member.email, member.displayName, reason, true);
   }
-  return { config, database, identity, mail, auth, inviteMember, resendInvite };
+  return { config, database, identity, mail, auth, inviteMember, resendInvite, memberDirectory };
 }
 export type Services = ReturnType<typeof createServices>;

@@ -7,6 +7,7 @@ import { loadConfig } from './config.js';
 import { createServices, type Services } from './services.js';
 import { memberRoutes } from './member.js';
 import { adminRoutes } from './admin.js';
+import { adminAssets } from './admin-assets.js';
 import { AppError } from './errors.js';
 import { memberWebRoutes } from './web.js';
 
@@ -116,6 +117,7 @@ export function createApp(
     return response;
   });
   app.route('/v1/me', memberRoutes(services));
+  app.route('/staff-assets', adminAssets());
   app.route('/admin', adminRoutes(services));
   app.route('/app', memberWebRoutes(options.webRoot ?? process.env.MEMBER_WEB_ROOT));
   app.notFound((c) => c.json({ error: { code: 'NOT_FOUND', message: 'Route not found.' } }, 404));

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { PoolConfig } from 'pg';
+import type { SourceConfiguration } from './member-sources.js';
 
 export type Config = {
   database: PoolConfig;
@@ -15,6 +16,7 @@ export type Config = {
   smtpHost: string;
   smtpPort: number;
   region: string;
+  memberSources?: SourceConfiguration;
 };
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const production = env.NODE_ENV === 'production';
@@ -69,5 +71,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     smtpHost: env.SMTP_HOST ?? '127.0.0.1',
     smtpPort: Number(env.SMTP_PORT ?? 51029),
     region: env.AWS_REGION ?? 'ap-southeast-2',
+    memberSources: {
+      maxioAU: Boolean(env.MAXIO_AU_API_KEY?.trim()),
+      maxioNZ: Boolean(env.MAXIO_NZ_API_KEY?.trim()),
+      hubspot: Boolean(env.HUBSPOT_ACCESS_TOKEN?.trim()),
+    },
   };
 }

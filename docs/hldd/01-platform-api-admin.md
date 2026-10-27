@@ -4,6 +4,8 @@
 
 One server-side application serves the member app and the internal browser admin in the client's AWS account (D-27). The selected design is TypeScript/Hono in an ECS Fargate container, Aurora PostgreSQL with Drizzle and SQL migrations, and server-rendered Hono JSX/htmx admin (D-03). Scheduled work uses the same application image. There is no Redis or message queue. These are settled architecture choices, not a platform selection exercise.
 
+The [staff admin interface specification](../features/staff-admin-ui.md) owns shared presentation, progressive enhancement, navigation, accessibility and form recovery conventions.
+
 Better Auth is selected for member/staff authentication (D-15), SES for email (D-28) and Expo Push Service for member notifications. Native members use bearer sessions; staff use secure browser cookie sessions. Staff roles, CSRF protection and member linkage are enforced server-side. The canonical eligibility/session requirements and restore gate are in [authentication](../features/authentication.md); identity/access policy is in [access and identity](../features/access-identity.md).
 
 The [architecture diagram](../architecture.md) shows trust boundaries. [API source](../../apps/api/), [mobile source](../../apps/mobile/), [infrastructure](../../infra/) and [workflow source](../../.github/workflows/) are authoritative for concrete schemas, routes, configuration and resources. Sansoni DevOps maintains infrastructure; Rodney reviews infrastructure changes. Deployment and infrastructure apply require the user's instruction.

@@ -45,6 +45,7 @@ COPY packages/contracts/package.json packages/contracts/
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY apps/api/package.json apps/api/
 COPY apps/api/migrations apps/api/migrations
+COPY apps/api/public/staff apps/api/public/staff
 COPY --from=web-build /repo/apps/mobile/dist apps/api/public/app
 WORKDIR /repo/apps/api
 USER node

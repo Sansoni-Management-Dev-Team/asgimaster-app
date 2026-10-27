@@ -24,6 +24,8 @@ An ambiguous match never links or merges itself (CON-16). Different emails, appr
 
 The staff roster is a refreshed view of in-scope Maxio membership with identity references. It is not maintained by recurring CSV imports. Staff invitation behaviour is defined in [authentication](authentication.md).
 
+Staff can search by name, email or member reference and inspect a member's account, login and invitation state alongside verified source information. Saved application accounts must be distinguished from the authoritative membership roster: an account or accepted invitation is not proof of an in-scope subscription or resolved access. Missing configuration or an unavailable source leaves saved accounts and unrelated staff workflows usable, identifies the affected source and never fabricates upstream links, membership facts or freshness. Deliberate fixtures remain distinguishable from verified source data.
+
 ## Capabilities and member states
 
 The API supplies stable capabilities, allowances, windows and display labels. The app does not encode membership tier names or rules (CON-05). Capabilities are unioned across linked subscriptions; when the same capability is granted more than once, use the larger allowance rather than adding allowances. Unknown allowances never become zero and display as “Included” (ENT-04). Mixed allowance semantics must conform to the client suite.

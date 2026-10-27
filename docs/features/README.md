@@ -5,6 +5,7 @@ Start here for required member and staff behaviour. These specifications describ
 | Specification                                                           | Canonical requirements                                                                                                            |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | [Authentication, invitations and staff access](authentication.md)       | Eligibility, passwordless entry, invitation lifecycle, session isolation, staff permissions and invitation release gate           |
+| [Staff admin interface](staff-admin-ui.md)                              | Semantic presentation, progressive enhancement, search/navigation, form recovery and accessible staff interaction                 |
 | [Member profile and onboarding](member-profile-onboarding.md)           | Member-owned profile and direction, first-run Home, questionnaire, editing, account persistence and membership presentation       |
 | [Access and identity](access-identity.md)                               | Membership truth, identity assertions, capabilities, access states, rules, corrections, failure containment and conformance       |
 | [Member experiences](member-experiences.md)                             | Learning, progress, events, support, enquiries, notifications and common offline behaviour                                        |
