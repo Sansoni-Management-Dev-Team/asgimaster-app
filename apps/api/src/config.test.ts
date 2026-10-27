@@ -13,6 +13,22 @@ const production = {
   DATABASE_URL: 'postgres://user:password@db.example.test/app',
   DATABASE_CA_BASE64: Buffer.from(rootCertificates[0]).toString('base64'),
 };
+test('optional membership credentials never prevent startup or imply connected sources', () => {
+  assert.deepEqual(loadConfig(production).memberSources, {
+    maxioAU: false,
+    maxioNZ: false,
+    hubspot: false,
+  });
+  assert.deepEqual(
+    loadConfig({
+      ...production,
+      MAXIO_AU_API_KEY: 'example',
+      MAXIO_NZ_API_KEY: ' ',
+      HUBSPOT_ACCESS_TOKEN: 'example',
+    }).memberSources,
+    { maxioAU: true, maxioNZ: false, hubspot: true },
+  );
+});
 test('production rejects pg URL options that override verified TLS', () => {
   for (const parameter of [
     'sslmode=disable',

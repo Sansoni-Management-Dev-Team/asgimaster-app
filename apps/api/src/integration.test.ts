@@ -685,6 +685,44 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
           .join('; ');
       const admin = await request('/admin', undefined, { cookie });
       assert.equal(admin.status, 200);
+      // Directory includes saved accounts without invitations or login mappings.
+      await db.insert(members).values(
+        Array.from({ length: 52 }, (_, index) => ({
+          id: `directory-${String(index).padStart(2, '0')}`,
+          displayName: `Directory member ${String(index).padStart(2, '0')}`,
+          email: `directory-${index}@example.test`,
+        })),
+      );
+      await db.insert(members).values({
+        id: 'literal-search',
+        displayName: 'Literal %_ member',
+        email: 'literal@example.test',
+      });
+      const first = await services.memberDirectory.list('DIRECTORY MEMBER', 1);
+      assert.equal(first.rows.length, 50);
+      assert.equal(first.hasNext, true);
+      const second = await services.memberDirectory.list('directory member', 2);
+      assert.equal(second.rows.length, 2);
+      assert.equal(second.hasNext, false);
+      assert.equal(second.rows[0].member.id, 'directory-50');
+      assert.equal(second.rows[0].login, null);
+      assert.equal((await services.memberDirectory.list('%_', 1)).rows.length, 1);
+      assert.equal(
+        (await services.memberDirectory.list('directory-51@example.test', 1)).rows.length,
+        1,
+      );
+      assert.equal((await services.memberDirectory.list('directory-51', 1)).rows.length, 1);
+      assert.equal((await services.memberDirectory.list("' OR true --", 1)).rows.length, 0);
+      const directory = await request('/admin/members?q=Directory&page=2', undefined, { cookie });
+      assert.equal(directory.status, 200);
+      assert.match(await directory.text(), /Directory member 50/);
+      const detail = await request('/admin/members/directory-51', undefined, { cookie });
+      assert.equal(detail.status, 200);
+      const detailBody = await detail.text();
+      assert.match(detailBody, /No linked login/);
+      assert.match(detailBody, /No invitations recorded/);
+      assert.match(detailBody, /Maxio AU: Not connected/);
+      assert.equal((await request('/admin/members/missing', undefined, { cookie })).status, 404);
       const authSession = await services.auth.api.getSession({ headers: new Headers({ cookie }) });
       assert.equal(authSession!.user.role, 'admin');
       assert.equal((await request('/v1/me', undefined, { cookie })).status, 401);
@@ -753,10 +791,113 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
         ).status,
         302,
       );
+      const enhancedForm = (
+        path: string,
+        values: Record<string, string>,
+        target = 'invite-create',
+      ) =>
+        app.request(config.url + path, {
+          method: 'POST',
+          headers: {
+            origin: config.url,
+            cookie: newCookie,
+            'content-type': 'application/x-www-form-urlencoded',
+            'HX-Request': 'true',
+            'HX-Request-Type': 'partial',
+            'HX-Target': `div#${target}`,
+          },
+          body: new URLSearchParams({ csrf, ...values }),
+        });
+      const enhancedValues = {
+        email: 'enhanced-admin@example.test',
+        displayName: 'Enhanced synthetic',
+        reason: 'Captured-mail verification',
+      };
+      const invalidEnhanced = await enhancedForm('/admin/invites', {
+        ...enhancedValues,
+        reason: '  ',
+      });
+      assert.equal(invalidEnhanced.status, 400);
+      assert.match(
+        await invalidEnhanced.text(),
+        /Captured-mail verification|enhanced-admin@example.test/,
+      );
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const created = await enhancedForm('/admin/invites', enhancedValues);
+        assert.equal(created.status, 204);
+        assert.equal(JSON.parse(created.headers.get('HX-Location')!).path, '/admin?notice=created');
+      }
+      const [enhancedMember] = await db
+        .select()
+        .from(members)
+        .where(eq(members.email, enhancedValues.email));
+      const enhancedInvites = await db
+        .select()
+        .from(invites)
+        .where(eq(invites.memberId, enhancedMember.id));
+      assert.equal(
+        enhancedInvites.length,
+        1,
+        'Enhanced repeated create retains server idempotency',
+      );
+      const oldId = enhancedInvites[0].id;
+      assert.equal(
+        (
+          await enhancedForm(
+            `/admin/invites/${oldId}/resend`,
+            { reason: 'Synthetic resend' },
+            `invite-${oldId}-resend`,
+          )
+        ).status,
+        204,
+      );
+      const [replacement] = await db
+        .select()
+        .from(invites)
+        .where(and(eq(invites.memberId, enhancedMember.id), eq(invites.status, 'pending')));
+      assert.notEqual(replacement.id, oldId);
+      assert.equal(
+        (
+          await enhancedForm(
+            `/admin/invites/${replacement.id}/revoke`,
+            { reason: 'Synthetic revoke' },
+            `invite-${replacement.id}-revoke`,
+          )
+        ).status,
+        204,
+      );
+      assert.equal(
+        (
+          await db
+            .select()
+            .from(invites)
+            .where(and(eq(invites.memberId, enhancedMember.id), eq(invites.status, 'pending')))
+        ).length,
+        0,
+      );
+      const fragment = await request('/admin/members?q=Directory&page=2', undefined, {
+        cookie: newCookie,
+        'HX-Request': 'true',
+        'HX-Request-Type': 'partial',
+        'HX-Target': 'section#member-results',
+      });
+      assert.equal(fragment.status, 200);
+      const fragmentBody = await fragment.text();
+      assert.match(fragmentBody, /Directory member 50/);
+      assert.doesNotMatch(fragmentBody, /<!doctype|id="member-search"/);
       const view = await request('/admin', undefined, { cookie: newCookie });
       assert.ok((await view.text()).includes('&lt;script&gt;'));
       assert.equal((await formRequest('/admin/sign-out', {}, newCookie)).status, 302);
       assert.equal((await request('/admin', undefined, { cookie: newCookie })).status, 302);
+      const expiredEnhanced = await request('/admin/members', undefined, {
+        cookie: newCookie,
+        'HX-Request': 'true',
+        'HX-Request-Type': 'partial',
+        'HX-Target': 'section#member-results',
+      });
+      assert.equal(expiredEnhanced.status, 200);
+      assert.equal(expiredEnhanced.headers.get('HX-Redirect'), '/admin/sign-in');
+      assert.equal(await expiredEnhanced.text(), '');
     });
     await t.test(
       'named staff and member permissions can coexist only through explicit links',
