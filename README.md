@@ -68,6 +68,36 @@ Open [the staff website](http://localhost:8789/admin). Enter `reviewer@example.t
 
 These example addresses do not have real inboxes. All their messages appear in the captured-email inbox. The staff website provides invitation tools. The member website and native app provide Home, Profile and onboarding.
 
+### Stable hostnames for remote development
+
+Local development uses the localhost origin in [the API example settings](apps/api/.env.example). For a private remote preview, use the machine's stable Tailscale DNS name and Tailscale Serve. Keep one explicit browser origin per running API instance; do not disable CSRF or accept arbitrary forwarded hosts to accommodate a proxy.
+
+Check the machine's DNS name and existing Serve routes before adding a route:
+
+```sh
+tailscale status --json
+tailscale serve status
+```
+
+Set `BETTER_AUTH_URL` in your local API settings to `https://<machine>.<tailnet>.ts.net`, then restart the API. Forward HTTPS to the API's configured loopback port; for the example settings:
+
+```sh
+tailscale serve --bg --https=443 http://127.0.0.1:8789
+```
+
+Open that exact HTTPS origin for sign-in and all subsequent admin actions. Cookies belong to the browser hostname, so localhost and the Tailscale hostname have separate sessions. Normal origin and CSRF-token checks remain enabled. Serve is private to authorised Tailscale users/devices; it does not make the preview public.
+
+If the captured-email inbox is also needed remotely, it can use a separate Serve HTTPS port pointing to the mailbox's configured web port. For the default local mailbox, the same machine's HTTPS port 8443 can forward to `http://127.0.0.1:58029`. Check that the selected Serve ports are unused and do not replace another project's routes. Keep preview accounts and mail isolated from live environments.
+
+To stop these routes, remove only the ports you configured:
+
+```sh
+tailscale serve --https=443 off
+tailscale serve --https=8443 off
+```
+
+Before returning to localhost, restore the localhost `BETTER_AUTH_URL` and restart the API. Replace any old BB share links for this preview with the stable Tailscale URL.
+
 ### Open the member app in your browser
 
 Keep the API running. In another terminal at the repository root, build the browser version:
