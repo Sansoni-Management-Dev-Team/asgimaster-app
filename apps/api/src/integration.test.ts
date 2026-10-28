@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
+import type { Services } from './services.js';
 import { setTimeout } from 'node:timers/promises';
 import { Pool } from 'pg';
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, inArray } from 'drizzle-orm';
 import { createApp } from './app.js';
 import type { Config } from './config.js';
 import { createServices } from './services.js';
@@ -1278,6 +1279,9 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
         }
       },
     );
+    await t.test('staff and admin management', async (t) =>
+      checkStaffManagement(t, services, loginOTP),
+    );
     if (process.env.TEST_SMTP_PORT)
       await t.test(
         'real capture SMTP transport delivers a queued invitation to Mailpit',
@@ -1299,3 +1303,251 @@ test('Postgres auth/member vertical slice', { skip: !databaseUrl }, async (t) =>
     await pool.end();
   }
 });
+
+async function checkStaffManagement(
+  t: TestContext,
+  services: Services,
+  login: (email: string) => Promise<{ response: Response }>,
+) {
+  const { db } = services.database;
+  const manager = services.staffManagement;
+  const a = await services.identity.bootstrapStaff('manager-a@example.test', 'Admin A', 'admin');
+  const b = await services.identity.bootstrapStaff('manager-b@example.test', 'Admin B', 'admin');
+  const staff = await services.identity.bootstrapStaff(
+    'operator@example.test',
+    'Operator',
+    'staff',
+  );
+  const app = createApp({ services });
+  const cookie = (response: Response) =>
+    response.headers
+      .getSetCookie()
+      .map((item) => item.split(';')[0])
+      .join('; ');
+  const adminCookie = cookie((await login(a.email)).response);
+  const staffCookie = cookie((await login(staff.email)).response);
+  const page = await app.request(services.config.url + '/admin/staff', {
+    headers: { cookie: adminCookie },
+  });
+  const html = await page.text();
+  const csrf = html.match(/name="csrf" value="([^"]+)"/)![1];
+  const cookies = adminCookie + '; ' + cookie(page);
+  const post = (path: string, values: Record<string, string>, enhanced = false, token = csrf) =>
+    app.request(services.config.url + path, {
+      method: 'POST',
+      headers: {
+        cookie: cookies,
+        origin: services.config.url,
+        ...(enhanced
+          ? { 'HX-Request': 'true', 'HX-Request-Type': 'partial', 'HX-Target': 'div#staff-add' }
+          : {}),
+      },
+      body: new URLSearchParams({ csrf: token, ...values }),
+    });
+  await t.test(
+    'staff management requires current admin OTP cookie authority and escapes searches',
+    async () => {
+      assert.equal(page.status, 200);
+      assert.match(html, /Staff &amp; Admin/);
+      assert.equal(
+        (await app.request('/admin/staff', { headers: { cookie: staffCookie } })).status,
+        403,
+      );
+      assert.equal(
+        (await app.request('/admin/staff/new', { headers: { cookie: staffCookie } })).status,
+        403,
+      );
+      assert.equal(
+        (await app.request('/admin/staff', { headers: { authorization: 'Bearer anything' } }))
+          .status,
+        403,
+      );
+      await assert.rejects(() =>
+        manager.change(staff.id, null, {
+          name: 'Bad',
+          email: 'bad@example.test',
+          role: 'admin',
+          reason: 'Escalate',
+        }),
+      );
+      const fragment = await app.request('/admin/staff?q=%3Cscript%3E', {
+        headers: {
+          cookie: adminCookie,
+          'HX-Request': 'true',
+          'HX-Request-Type': 'partial',
+          'HX-Target': 'section#staff-results',
+        },
+      });
+      assert.equal(fragment.status, 200);
+      assert.doesNotMatch(await fragment.text(), /<!doctype|<script>/);
+      const dialog = await app.request('/admin/staff/new', {
+        headers: {
+          cookie: adminCookie,
+          'HX-Request': 'true',
+          'HX-Request-Type': 'partial',
+          'HX-Target': 'div#staff-dialog-content',
+        },
+      });
+      assert.equal(dialog.headers.get('X-Staff-Dialog'), 'true');
+      assert.doesNotMatch(await dialog.text(), /<!doctype/);
+    },
+  );
+  await t.test(
+    'native and enhanced forms preserve values on validation and stale CSRF without writes',
+    async () => {
+      const values = {
+        name: '<script>Kept</script>',
+        email: 'kept@example.test',
+        role: 'staff',
+        reason: 'Retained reason',
+      };
+      for (const enhanced of [false, true]) {
+        const response = await post('/admin/staff/new', values, enhanced, 'stale');
+        assert.equal(response.status, 403);
+        const body = await response.text();
+        assert.match(body, /Retained reason/);
+        assert.match(body, /&lt;script&gt;/);
+        assert.match(body, /Nothing was saved/);
+        if (enhanced) assert.equal(response.headers.get('X-Staff-Form'), 'staff-add');
+        assert.equal(await services.identity.byEmail(values.email), undefined);
+        const invalid = await post('/admin/staff/new', { ...values, reason: '' }, enhanced);
+        assert.equal(invalid.status, 400);
+        assert.match(await invalid.text(), /Enter valid values/);
+      }
+      const wrongOrigin = await app.request('/admin/staff/new', {
+        method: 'POST',
+        headers: { cookie: cookies, origin: 'https://other.example' },
+        body: new URLSearchParams({ csrf, ...values }),
+      });
+      assert.equal(wrongOrigin.status, 403);
+    },
+  );
+  await t.test(
+    'grant/revoke preserves linked member data, audits real actor and rejects stale role changes',
+    async () => {
+      const record = await services.identity.provisionMember(
+        a.id,
+        'dual-staff@example.test',
+        'Member name',
+      );
+      const originalMember = await db.select().from(members).where(eq(members.id, record.id));
+      const originalLink = await db
+        .select()
+        .from(memberLogins)
+        .where(eq(memberLogins.userId, record.userId));
+      await manager.change(a.id, null, {
+        email: 'DUAL-STAFF@example.test',
+        name: 'Ignored rename',
+        role: 'staff',
+        reason: 'Support duties',
+      });
+      assert.equal((await services.identity.byUserId(record.userId))!.name, 'Member name');
+      await manager.change(a.id, record.userId, {
+        expectedRole: 'staff',
+        role: 'user',
+        reason: 'End support duties',
+      });
+      assert.deepEqual(
+        await db.select().from(members).where(eq(members.id, record.id)),
+        originalMember,
+      );
+      assert.deepEqual(
+        await db.select().from(memberLogins).where(eq(memberLogins.userId, record.userId)),
+        originalLink,
+      );
+      const entries = await db
+        .select()
+        .from(audit)
+        .where(and(eq(audit.targetId, record.userId), eq(audit.action, 'staff.revoke')));
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0].actorId, a.id);
+      assert.deepEqual(entries[0].detail, {
+        before: 'staff',
+        after: 'user',
+        reason: 'End support duties',
+      });
+      await assert.rejects(() =>
+        manager.change(a.id, record.userId, {
+          expectedRole: 'staff',
+          role: 'admin',
+          reason: 'Stale form',
+        }),
+      );
+      const response = await post(
+        '/admin/staff/new',
+        {
+          name: 'New Staff',
+          email: 'new-staff@example.test',
+          role: 'staff',
+          reason: 'New colleague',
+        },
+        true,
+      );
+      assert.equal(response.status, 204);
+      assert.match(response.headers.get('HX-Location')!, /admin\/staff/);
+      const created = (await services.identity.byEmail('new-staff@example.test'))!;
+      assert.equal(created.emailVerified, false);
+      assert.equal(
+        (await db.select().from(memberLogins).where(eq(memberLogins.userId, created.id))).length,
+        0,
+      );
+      await manager.change(a.id, staff.id, {
+        expectedRole: 'staff',
+        role: 'user',
+        reason: 'Remove access now',
+      });
+      assert.equal((await app.request('/admin', { headers: { cookie: staffCookie } })).status, 403);
+    },
+  );
+  await t.test(
+    'last usable admin protection survives concurrent mutual demotion and ignores blocked admins',
+    async () => {
+      const others = await db.select().from(user).where(eq(user.role, 'admin'));
+      const othersIds = others.filter((row) => ![a.id, b.id].includes(row.id)).map((row) => row.id);
+      try {
+        if (othersIds.length)
+          await db.update(user).set({ role: 'staff' }).where(inArray(user.id, othersIds));
+        await db.update(user).set({ banned: true }).where(eq(user.id, b.id));
+        await assert.rejects(
+          () =>
+            manager.change(a.id, a.id, {
+              expectedRole: 'admin',
+              role: 'staff',
+              reason: 'Only active admin',
+            }),
+          /at least one active admin/,
+        );
+        await db.update(user).set({ banned: false }).where(eq(user.id, b.id));
+        const attempts = await Promise.allSettled([
+          manager.change(a.id, b.id, {
+            expectedRole: 'admin',
+            role: 'staff',
+            reason: 'Mutual demotion A',
+          }),
+          manager.change(b.id, a.id, {
+            expectedRole: 'admin',
+            role: 'staff',
+            reason: 'Mutual demotion B',
+          }),
+        ]);
+        assert.equal(attempts.filter((result) => result.status === 'fulfilled').length, 1);
+        const remaining = await db.select().from(user).where(eq(user.role, 'admin'));
+        assert.equal(remaining.length, 1);
+        await assert.rejects(
+          () =>
+            manager.change(remaining[0].id, remaining[0].id, {
+              expectedRole: 'admin',
+              role: 'user',
+              reason: 'Last admin',
+            }),
+          /at least one active admin/,
+        );
+        const demoted = remaining[0].id === a.id ? b : a;
+        await assert.rejects(() => manager.requireAdmin(demoted.id), /Admin access/);
+      } finally {
+        if (othersIds.length)
+          await db.update(user).set({ role: 'admin' }).where(inArray(user.id, othersIds));
+      }
+    },
+  );
+}

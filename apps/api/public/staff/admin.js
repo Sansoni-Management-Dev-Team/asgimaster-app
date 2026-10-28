@@ -65,13 +65,13 @@
     status(
       ctx.request.method === 'GET'
         ? 'Unable to load this view. Your current results are still shown. Retry Search or the link.'
-        : 'Unable to confirm this action. Your entries are kept. Review invitations before trying again.',
+        : 'Unable to confirm this action. Your entries are kept. Review the relevant account before trying again.',
     );
   let activeViewRequest;
   let activeDialogRequest;
   const superseded = new WeakSet();
   document.addEventListener('input', (event) => {
-    if (event.target.id === 'member-search') {
+    if (['member-search', 'staff-search', 'staff-role-filter'].includes(event.target.id)) {
       if (activeViewRequest) {
         superseded.add(activeViewRequest);
         // htmx owns the queue; abort through the current request's source.
@@ -84,7 +84,7 @@
     // Requests for navigation, search and paging share the replace queue. Mark
     // the prior request before its abort rejection is delivered; timeouts have
     // no replacement and therefore still announce a recoverable failure.
-    if (['staff-view', 'member-results'].includes(ctx.target.id)) {
+    if (['staff-view', 'member-results', 'staff-results'].includes(ctx.target.id)) {
       if (activeViewRequest) superseded.add(activeViewRequest);
       activeViewRequest = ctx;
     }
@@ -97,8 +97,15 @@
       dialog.dataset.pending = 'true';
       dialog.querySelector('[data-dialog-close]')?.setAttribute('aria-disabled', 'true');
     }
-    if (ctx.sourceElement.closest('nav[aria-label="Member pages"]')) {
-      const search = document.getElementById('member-search');
+    if (
+      ctx.sourceElement.closest('nav[aria-label="Member pages"], nav[aria-label="Staff pages"]')
+    ) {
+      const search = document.getElementById(
+        ctx.target.id === 'staff-results' ? 'staff-search' : 'member-search',
+      );
+      if (ctx.target.id === 'staff-results')
+        document.getElementById('staff-role-filter').value =
+          new URL(ctx.request.action, location.href).searchParams.get('role') ?? '';
       if (search)
         search.value = new URL(ctx.request.action, location.href).searchParams.get('q') ?? '';
     }
@@ -108,6 +115,13 @@
     const { ctx } = event.detail;
     const { headers, status: code } = ctx.response;
     if (headers.has('HX-Redirect') || headers.has('HX-Location') || code === 204) return;
+    if (ctx.request.method === 'POST' && !ctx.target.isConnected && code >= 400) {
+      event.preventDefault();
+      status(
+        'Unable to save this action. The dialog was closed. Review the account before trying again.',
+      );
+      return;
+    }
     // v4 swaps errors by default. Only our specifically marked staff HTML may
     // replace a form/view; API JSON, CSRF/auth errors and search failures stay out.
     const html = headers.get('Content-Type')?.startsWith('text/html');
@@ -151,7 +165,7 @@
       status(
         ctx.request.method === 'GET'
           ? `${failure} Your current results are still shown. Retry Search or the link.`
-          : `${failure} Your entries are kept. Review invitations before repeating this action.`,
+          : `${failure} Your entries are kept. Review the relevant account before repeating this action.`,
       );
     }
   });
@@ -168,7 +182,7 @@
     if (error) {
       status('Please review the form.');
       error.focus();
-    } else if (target.id === 'member-results')
+    } else if (['member-results', 'staff-results'].includes(target.id))
       status(target.querySelector('[data-results-summary]')?.textContent ?? 'Results updated.');
     else if (target.id === 'staff-view') {
       const wasOpen = dialog?.open;

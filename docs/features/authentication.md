@@ -32,6 +32,14 @@ Sign-in attempts and credential requests are bounded across service instances. C
 
 Staff are provisioned through a controlled administrative process. Entering staff admin requires both staff permission and a browser cookie session proven by email code. A person with both member and staff permissions may use either passwordless method for member access, but a magic-link-issued session cannot enter staff admin. Membership alone grants no staff access; clients cannot choose their own roles. Staff features stay outside the member app (ADM-06). Server-side permissions protect both pages and mutations, with CSRF protection for browser mutations. Every staff mutation records actor, time, target, reason where required, and the change made. Identity and access changes retain the stronger audit requirements in their [feature specification](access-identity.md).
 
+### Staff and admin management
+
+Each login has one administrative role: ordinary user, staff or admin. Staff and admins can perform member operations; only admins can view or manage the staff team. Membership is an independent link, so either staff role can coexist with membership.
+
+The Staff & Admin page supports searching and filtering the team, adding a named staff account, changing its role and removing staff access. Adding by email reuses an existing login where present without changing its name, membership or email verification. A new staff-only identity must prove control of its email through the normal sign-in flow. Role changes and removals require an explicit reason and record the acting admin, target and before/after permissions atomically.
+
+Permission checks use current server-side authority, including when the mutation commits. Concurrent changes cannot remove the last unblocked admin or let a newly demoted actor continue administering staff. A stale role-change form requires review rather than silently overwriting a later change. Removing staff access immediately denies staff operations while preserving the login, member link and member data. Account-wide bans, deletion, impersonation and email changes are separate operations, not substitutes for removing staff access. Initial admin provisioning and recovery remain controlled operating procedures.
+
 Credential-bearing links carry a one-time verification credential, never a reusable session. The app exchanges it through the approved sign-in flow; web installation/help fallback is separate and credential-free. Obsolete queued codes are cancelled when replaced. Staff can direct the member to request a fresh code rather than treating an expired credential as deliverable.
 
 Transport acceptance is not proof that email reached the inbox. Staff-facing states must distinguish queued/sent work, failures and expiry without implying delivery confirmation.

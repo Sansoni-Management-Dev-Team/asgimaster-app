@@ -6,6 +6,7 @@ import { createMail, type Transport } from './mail.js';
 import { createAuth } from './auth.js';
 import { invites, memberLogins, members } from './db/schema.js';
 import { AppError } from './errors.js';
+import { createStaffManagement } from './staff-management.js';
 import { createMemberDirectory } from './member-directory.js';
 import { createMemberSources } from './member-sources.js';
 
@@ -78,6 +79,16 @@ export function createServices(config: Config, transport?: Transport) {
     if (!member) throw new AppError(404, 'INVITE_NOT_FOUND', 'Invitation not found.');
     return inviteMember(actorId, member.email, member.displayName, reason, true);
   }
-  return { config, database, identity, mail, auth, inviteMember, resendInvite, memberDirectory };
+  return {
+    config,
+    database,
+    identity,
+    mail,
+    auth,
+    inviteMember,
+    resendInvite,
+    memberDirectory,
+    staffManagement: createStaffManagement(database),
+  };
 }
 export type Services = ReturnType<typeof createServices>;
