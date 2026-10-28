@@ -439,7 +439,8 @@ button > .pending {
   }
 }
 /* Routine live announcements never move the page during enhanced navigation. */
-#request-status {
+#request-status,
+#dialog-status:not([data-error='true']) {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -470,6 +471,7 @@ button > .pending {
 /* Pico's generic busy spinner must not become a child before an entire view. */
 #staff-view[aria-busy='true'],
 #member-results[aria-busy='true'],
+#staff-results[aria-busy='true'],
 #staff-dialog-content[aria-busy='true'],
 .invitation-form[aria-busy='true'] {
   white-space: normal;
@@ -480,4 +482,17 @@ button > .pending {
 #staff-dialog-content[aria-busy='true']::before,
 .invitation-form[aria-busy='true']::before {
   display: none;
+}
+
+.staff-search-toolbar label {
+  flex-basis: auto;
+}
+.staff-search-toolbar select {
+  width: auto;
+  min-width: 8rem;
+  margin: 0;
+}
+
+.staff-search-toolbar {
+  max-width: none;
 }

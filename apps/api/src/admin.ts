@@ -16,6 +16,7 @@ import {
   type FormErrors,
 } from './admin-invitations.js';
 import { APIError } from 'better-auth/api';
+import { staffManagementRoutes, staffForm, staffFormKey } from './admin-staff.js';
 import { memberDirectoryRoutes } from './admin-members.js';
 
 const same = (a: string, b: string) => {
@@ -25,7 +26,12 @@ const same = (a: string, b: string) => {
 };
 export function adminRoutes(services: () => Services) {
   const app = new Hono<{
-    Variables: { staffId: string; csrf: string; form: Record<string, string | File> };
+    Variables: {
+      staffId: string;
+      staffRole: string;
+      csrf: string;
+      form: Record<string, string | File>;
+    };
   }>();
   const invitationSubject = async (id: string) => {
     if (!id) return '';
@@ -87,6 +93,9 @@ export function adminRoutes(services: () => Services) {
         throw new AppError(403, 'STAFF_REQUIRED', 'Named staff access is required.');
       }
       c.set('staffId', session.user.id);
+      c.set('staffRole', session.user.role ?? 'user');
+      if (c.req.path === '/admin/staff' || c.req.path.startsWith('/admin/staff/'))
+        await services().staffManagement.requireAdmin(session.user.id);
     }
     if (c.req.method === 'POST') {
       const form = await c.req.parseBody();
@@ -96,6 +105,21 @@ export function adminRoutes(services: () => Services) {
       if (typeof form.csrf !== 'string' || !same(csrf, form.csrf)) {
         // Valid-origin stale forms recover without performing the mutation. The
         // response carries the current signed-cookie token and retained values.
+        const staff = c.req.path.match(/^\/admin\/staff\/(?:new|([^/]+)\/edit)$/);
+        if (staff) {
+          const id = staff[1] ? decodeURIComponent(staff[1]) : '';
+          const view = staffForm(
+            csrf,
+            id,
+            form,
+            'Nothing was saved. This form expired. Your entries are kept; submit again.',
+          );
+          if (enhanced(c) && c.req.header('HX-Target') === `div#${staffFormKey(id)}`) {
+            c.header('X-Staff-Form', staffFormKey(id));
+            return c.html(view, 403);
+          }
+          return c.html(staffPage(c, 'Review staff access', view, csrf), 403);
+        }
         const invitation = c.req.path.match(/^\/admin\/invites(?:\/([^/]+)\/(resend|revoke))?$/);
         if (invitation) {
           const action = invitation[2] ?? 'create';
@@ -125,6 +149,7 @@ export function adminRoutes(services: () => Services) {
     }
     await next();
   });
+  app.route('/staff', staffManagementRoutes(services));
   const signInForm = (csrf: string, message = '', email = '', verify = false) =>
     page(
       verify ? 'Enter sign-in code' : 'Staff sign in',

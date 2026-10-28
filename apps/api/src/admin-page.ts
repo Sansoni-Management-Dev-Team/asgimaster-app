@@ -63,6 +63,7 @@ export function staffPage(c: Context, title: string, content: unknown, csrf: str
     <header class="site-header">
       <a href="/admin" class="brand">Sansoni <small>Staff workspace</small></a>
       <nav aria-label="Staff navigation">
+        ${c.get('staffRole') === 'admin' ? html`<a href="/admin/staff" aria-current="${c.req.path.startsWith('/admin/staff') ? 'page' : 'false'}">Staff &amp; Admin</a>` : ''}
         <a href="/admin/members" aria-current="${members ? 'page' : 'false'}">Members</a>
         <a href="/admin" aria-current="${c.req.path === '/admin' ? 'page' : 'false'}"
           >Invitations</a
@@ -91,3 +92,22 @@ export function staffPage(c: Context, title: string, content: unknown, csrf: str
 
 export const tableRegion = (label: string, table: unknown) =>
   html`<div class="table-region" role="region" aria-label="${label}" tabindex="0">${table}</div>`;
+
+export const dialogActionLink = (
+  path: string,
+  label: string,
+  className = '',
+  accessibleLabel = label,
+) =>
+  html`<a
+    href="${path}"
+    class="${className}"
+    aria-label="${accessibleLabel}"
+    data-dialog-open
+    hx-get="${path}"
+    hx-target="#staff-dialog-content"
+    hx-swap="innerHTML"
+    hx-sync="#staff-dialog:replace"
+    hx-push-url="false"
+    >${label}</a
+  >`;

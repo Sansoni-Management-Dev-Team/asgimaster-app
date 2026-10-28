@@ -7,6 +7,7 @@ Follow the [README](../README.md#getting-started) for local startup and a fixed 
 ## Start from these examples
 
 - [Page helpers](../apps/api/src/admin-page.ts): document shell, navigation and full/partial response selection.
+- [Staff management](../apps/api/src/admin-staff.ts) and [role service](../apps/api/src/staff-management.ts): admin-only directory, reason forms and atomic permission changes.
 - [Member views](../apps/api/src/admin-members.ts): URL-based search, paging and details.
 - [Invitation views](../apps/api/src/admin-invitations.ts) and [handlers](../apps/api/src/admin.ts): native form pages, dialog fragments, validation and mutations.
 - [Browser script](../apps/api/public/staff/admin.js), [stylesheet](../apps/api/public/staff/admin.css) and [asset handler](../apps/api/src/admin-assets.ts): shared behaviour, appearance and packaged assets.

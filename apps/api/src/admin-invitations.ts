@@ -1,29 +1,10 @@
 import { html } from 'hono/html';
-import { tableRegion } from './admin-page.js';
+import { tableRegion, dialogActionLink } from './admin-page.js';
 import type { invites, members, outbox } from './db/schema.js';
 
 export const dateLabel = (date: Date) =>
   html`<time datetime="${date.toISOString()}" title="${date.toISOString()}"
     >${new Intl.DateTimeFormat('en-AU', { dateStyle: 'medium', timeZone: 'Australia/Sydney' }).format(date)}</time
-  >`;
-
-export const invitationActionLink = (
-  path: string,
-  label: string,
-  className = '',
-  accessibleLabel = label,
-) =>
-  html`<a
-    href="${path}"
-    class="${className}"
-    aria-label="${accessibleLabel}"
-    data-dialog-open
-    hx-get="${path}"
-    hx-target="#staff-dialog-content"
-    hx-swap="innerHTML"
-    hx-sync="#staff-dialog:replace"
-    hx-push-url="false"
-    >${label}</a
   >`;
 
 export type FormValues = Record<string, string | File>;
@@ -98,7 +79,7 @@ export function invitationsView(
   return html`${notice ? html`<p class="notice" role="status">${notice}</p>` : ''}
     <div class="page-toolbar">
       <p>Manage invitations to saved member accounts.</p>
-      ${invitationActionLink('/admin/invites/new', 'Invite member', 'primary-action')}
+      ${dialogActionLink('/admin/invites/new', 'Invite member', 'primary-action')}
     </div>
     ${tableRegion(
       'Member invitations',
@@ -130,8 +111,8 @@ export function invitationsView(
                   ${
                     invite.status === 'pending'
                       ? html`<div class="row-actions">
-                          ${invitationActionLink(`/admin/invites/${encodeURIComponent(invite.id)}/resend`, 'Resend', '', `Resend invitation for ${member.displayName}`)}
-                          ${invitationActionLink(`/admin/invites/${encodeURIComponent(invite.id)}/revoke`, 'Revoke', 'danger-link', `Revoke invitation for ${member.displayName}`)}
+                          ${dialogActionLink(`/admin/invites/${encodeURIComponent(invite.id)}/resend`, 'Resend', '', `Resend invitation for ${member.displayName}`)}
+                          ${dialogActionLink(`/admin/invites/${encodeURIComponent(invite.id)}/revoke`, 'Revoke', 'danger-link', `Revoke invitation for ${member.displayName}`)}
                         </div>`
                       : html`<span class="muted">—</span>`
                   }
