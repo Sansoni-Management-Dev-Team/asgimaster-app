@@ -46,7 +46,7 @@ Transport acceptance is not proof that email reached the inbox. Staff-facing sta
 
 ## Invitation release gate
 
-D-01 and PLT-07 require a restore rehearsed from a real backup into an empty database **before the first member invitation**. This includes synthetic member invitations; a healthy service or successful local migration is not restore evidence. Isolated captured-mail verification does not satisfy this release gate. Live email sending, bounce/complaint handling and reviewed secret, trust and network configuration must also be verified before release; local mail capture proves only the local flow. Keep verification evidence outside `docs/`.
+D-01 and PLT-07 require a restore rehearsed from a real backup into an empty database **before the first real member is invited in production**. Synthetic and test invitations in staging don't wait on it. A healthy service or successful local migration is not restore evidence. Isolated captured-mail verification does not satisfy this release gate. Live email sending, bounce/complaint handling and reviewed secret, trust and network configuration must also be verified before release; local mail capture proves only the local flow. Keep verification evidence outside `docs/`.
 
 The store reviewer has a permanent, fully entitled demo account with a static code that needs no email (PLT-03, CMP-02). This is a bounded reviewer experience, never a general authentication bypass or a way to access real member data.
 
@@ -58,7 +58,7 @@ The store reviewer has a permanent, fully entitled demo account with a static co
 - Member permission alone cannot access staff operations. Dual-role member magic sign-in works for member access but fails staff entry; staff entry requires an email-code-proven browser session. Unauthorised staff mutations fail and authorised ones are audited.
 - Failed delivery, resend and revoke have truthful, recoverable staff states. Concurrent actions cannot revive old credentials or duplicate identities/invitations, and transport acceptance is not represented as inbox confirmation.
 - Sign-out makes the presented session unusable and clears that device's member data and associations while leaving independent device sessions valid.
-- The invitation gate has recorded restore evidence before invitations are enabled.
+- The invitation gate has recorded restore evidence before real members are invited in production.
 
 ## Unresolved choices
 
