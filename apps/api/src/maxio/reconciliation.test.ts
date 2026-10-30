@@ -31,7 +31,7 @@ async function fixture(region: 'AU' | 'NZ', count = 2): Promise<MaxioResult> {
     },
   ).collect();
 }
-async function setup() {
+async function setup(staleAfterMs = 1000) {
   let saved: StoredMaxioCollection | null = null;
   let conflict = false,
     storageFailure = false,
@@ -64,7 +64,7 @@ async function setup() {
     },
     store,
     now: () => time,
-    staleAfterMs: 1000,
+    staleAfterMs,
     throttleMs: 500,
     // Synthetic test policy only; no production completeness floor is approved.
     acceptCompleteness: (candidate, previous) =>
@@ -73,6 +73,8 @@ async function setup() {
   return {
     coordinator,
     results,
+    store,
+    now: () => time,
     saved: () => saved,
     calls: () => calls,
     conflict: () => {
@@ -264,20 +266,91 @@ test('stale-on-open storage errors return sanitized operational health', async (
   assert.equal(JSON.stringify(health).includes('private'), false);
 });
 
-test('fresh externally refreshed store clears a prior local failure and updates reported freshness', async () => {
+test('fresh externally published collection clears a prior failure only after a real CAS publication', async () => {
   const s = await setup();
   await s.coordinator.nightly();
   s.tick(2000);
   s.results.NZ = { status: 'failed', region: 'NZ', code: 'unavailable' };
   assert.equal((await s.coordinator.onOpen()).status, 'held');
-  // A separate coordinator has successfully replaced the persisted collection.
-  const externalAsAt = '2026-01-01T00:00:03Z';
-  s.saved()!.snapshots.AU.collectedAt = externalAsAt;
-  s.saved()!.snapshots.NZ.collectedAt = externalAsAt;
-  s.tick(501);
+  const failedRevision = s.saved()!.revision;
+  s.tick(1000);
+  const AU = await fixture('AU'),
+    NZ = await fixture('NZ');
+  assert.equal(AU.status, 'complete');
+  assert.equal(NZ.status, 'complete');
+  if (AU.status !== 'complete' || NZ.status !== 'complete') return;
+  const externalAsAt = s.now().toISOString();
+  AU.snapshot.collectedAt = externalAsAt;
+  NZ.snapshot.collectedAt = externalAsAt;
+  const external = createMaxioReconciliation({
+    sources: { AU: { collect: async () => AU }, NZ: { collect: async () => NZ } },
+    store: s.store,
+    now: s.now,
+    staleAfterMs: 1000,
+    throttleMs: 500,
+    acceptCompleteness: () => true,
+  });
+  assert.equal((await external.nightly()).status, 'ready');
+  assert.notEqual(s.saved()!.revision, failedRevision);
   const health = await s.coordinator.onOpen();
   assert.equal(health.status, 'ready');
   assert.deepEqual(health.failures, []);
-  assert.equal(health.lastSuccess, new Date(externalAsAt).toISOString());
+  assert.equal(health.lastSuccess, externalAsAt);
   assert.equal(s.calls(), 4);
+});
+
+test('unchanged fresh saved inputs never erase a failed refresh or change source freshness', async () => {
+  for (const failure of ['source', 'storage'] as const) {
+    const s = await setup(10_000);
+    const first = await s.coordinator.nightly();
+    assert.equal(first.lastSuccess, '2026-01-01T00:00:00.000Z');
+    const previous = structuredClone(s.saved());
+    s.tick(100);
+    if (failure === 'source')
+      s.results.NZ = { status: 'failed', region: 'NZ', code: 'unavailable' };
+    else s.failStorage();
+    const failed = await s.coordinator.staffRefresh();
+    assert.equal(failed.status, failure === 'source' ? 'held' : 'failed');
+    s.tick(501);
+    assert.deepEqual(await s.coordinator.onOpen(), failed);
+    assert.deepEqual(s.saved(), previous);
+    assert.equal(s.calls(), 4);
+  }
+});
+
+test('new revision with pre-failure source freshness cannot acknowledge recovery', async () => {
+  const s = await setup(10_000);
+  await s.coordinator.nightly();
+  s.tick(100);
+  s.results.NZ = { status: 'failed', region: 'NZ', code: 'unavailable' };
+  const failed = await s.coordinator.staffRefresh();
+  const current = (await s.store.read())!;
+  assert.equal(
+    await s.store.compareAndSwap(current.revision, { ...current, revision: 'synthetic-new-token' }),
+    true,
+  );
+  s.tick(501);
+  assert.deepEqual(await s.coordinator.onOpen(), failed);
+});
+
+test('source freshness has the same definition after local publication and cached opens', async () => {
+  const s = await setup(10_000);
+  const first = await s.coordinator.nightly();
+  assert.equal(first.lastSuccess, '2026-01-01T00:00:00.000Z');
+  s.tick(501);
+  const opened = await s.coordinator.onOpen();
+  assert.equal(opened.lastSuccess, first.lastSuccess);
+  assert.equal(opened.status, 'ready');
+});
+
+test('all missing credentials report not_connected; a mixed source failure reports held', async () => {
+  const s = await setup();
+  s.results.AU = { status: 'failed', region: 'AU', code: 'not_configured' };
+  s.results.NZ = { status: 'failed', region: 'NZ', code: 'not_configured' };
+  assert.equal((await s.coordinator.nightly()).status, 'not_connected');
+  assert.equal(s.saved(), null);
+  s.results.NZ = await fixture('NZ');
+  assert.equal((await s.coordinator.nightly()).status, 'held');
+  s.results.NZ = { status: 'failed', region: 'NZ', code: 'unavailable' };
+  assert.equal((await s.coordinator.nightly()).status, 'held');
 });

@@ -17,6 +17,8 @@ export type MaxioStore = {
 };
 export type ReconciliationHealth = {
   lastAttempt: string | null;
+  // Source freshness: oldest collectedAt in the last successfully published collection.
+  // This is never the coordinator's completion time or the time of a failed attempt.
   lastSuccess: string | null;
   status: 'not_connected' | 'refreshing' | 'ready' | 'held' | 'failed';
   failures: { source: 'AU' | 'NZ' | 'collection'; code: string }[];
@@ -25,6 +27,9 @@ export type CompletenessReview = (
   candidate: MaxioSnapshot,
   previous: MaxioSnapshot | null,
 ) => boolean;
+function sourceFreshness(snapshots: MaxioCollection) {
+  return Math.min(...[snapshots.AU, snapshots.NZ].map((source) => Date.parse(source.collectedAt)));
+}
 // No default production completeness floor: D-37 requires approval. The injected
 // reviewer must check source/member/subscription counts against approved policy.
 export function createMaxioReconciliation(options: {
@@ -46,7 +51,9 @@ export function createMaxioReconciliation(options: {
     throw new Error('Invalid refresh intervals');
   const now = options.now ?? (() => new Date());
   let inFlight: Promise<ReconciliationHealth> | undefined;
-  let lastStarted = -Infinity;
+  let lastChecked = -Infinity;
+  let observedRevision: string | null | undefined;
+  let failedAttempt: { revision: string | null | undefined; at: number } | undefined;
   let health: ReconciliationHealth = {
     lastAttempt: null,
     lastSuccess: null,
@@ -55,10 +62,14 @@ export function createMaxioReconciliation(options: {
   };
   async function run(): Promise<ReconciliationHealth> {
     const attempt = now().toISOString();
-    lastStarted = now().getTime();
+    lastChecked = now().getTime();
+    let attemptedRevision = observedRevision;
     health = { ...health, lastAttempt: attempt, status: 'refreshing', failures: [] };
     try {
       const previous = await options.store.read();
+      attemptedRevision = observedRevision = previous?.revision ?? null;
+      if (previous)
+        health.lastSuccess = new Date(sourceFreshness(previous.snapshots)).toISOString();
       // Serial calls keep concurrency below Maxio's per-site limits.
       const AU = await options.sources.AU.collect();
       const NZ = await options.sources.NZ.collect();
@@ -66,7 +77,12 @@ export function createMaxioReconciliation(options: {
         result.status === 'failed' ? [{ source: result.region, code: result.code }] : [],
       );
       if (AU.status !== 'complete' || NZ.status !== 'complete') {
-        health = { ...health, status: 'held', failures };
+        const unconfigured =
+          AU.status === 'failed' &&
+          AU.code === 'not_configured' &&
+          NZ.status === 'failed' &&
+          NZ.code === 'not_configured';
+        health = { ...health, status: unconfigured ? 'not_connected' : 'held', failures };
         return structuredClone(health);
       }
       const snapshots: MaxioCollection = { AU: AU.snapshot, NZ: NZ.snapshot };
@@ -96,9 +112,10 @@ export function createMaxioReconciliation(options: {
           ),
         )
         .digest('hex');
+      const revision = randomUUID();
       if (
         !(await options.store.compareAndSwap(previous?.revision ?? null, {
-          revision: randomUUID(),
+          revision,
           contentHash,
           snapshots,
         }))
@@ -109,9 +126,11 @@ export function createMaxioReconciliation(options: {
           failures: [{ source: 'collection', code: 'conflict' }],
         };
       } else {
+        observedRevision = revision;
+        failedAttempt = undefined;
         health = {
           lastAttempt: attempt,
-          lastSuccess: now().toISOString(),
+          lastSuccess: new Date(sourceFreshness(snapshots)).toISOString(),
           status: 'ready',
           failures: [],
         };
@@ -122,6 +141,9 @@ export function createMaxioReconciliation(options: {
         status: 'failed',
         failures: [{ source: 'collection', code: 'unavailable' }],
       };
+    } finally {
+      if (health.status !== 'ready')
+        failedAttempt = { revision: attemptedRevision, at: Date.parse(attempt) };
     }
     return structuredClone(health);
   }
@@ -134,27 +156,34 @@ export function createMaxioReconciliation(options: {
   }
   async function onOpen() {
     if (inFlight) return inFlight;
-    if (now().getTime() - lastStarted < options.throttleMs) return structuredClone(health);
+    if (now().getTime() - lastChecked < options.throttleMs) return structuredClone(health);
+    lastChecked = now().getTime();
     try {
       const saved = await options.store.read();
-      const oldest = saved
-        ? Math.min(
-            ...[saved.snapshots.AU, saved.snapshots.NZ].map((source) =>
-              Date.parse(source.collectedAt),
-            ),
-          )
-        : -Infinity;
+      observedRevision = saved?.revision ?? null;
+      const oldest = saved ? sourceFreshness(saved.snapshots) : -Infinity;
       if (now().getTime() - oldest < options.staleAfterMs) {
-        health = {
-          ...health,
-          lastSuccess: new Date(oldest).toISOString(),
-          status: 'ready',
-          failures: [],
-        };
+        // Fresh cached inputs do not erase a failed run. Recovery requires a new
+        // publication token AND a whole collection fetched after that attempt.
+        const recovered =
+          saved &&
+          failedAttempt?.revision !== undefined &&
+          saved.revision !== failedAttempt.revision &&
+          oldest > failedAttempt.at;
+        if (!failedAttempt || recovered) {
+          failedAttempt = undefined;
+          health = {
+            ...health,
+            lastSuccess: new Date(oldest).toISOString(),
+            status: 'ready',
+            failures: [],
+          };
+        }
         return structuredClone(health);
       }
       return refresh();
     } catch {
+      failedAttempt ??= { revision: observedRevision, at: now().getTime() };
       health = {
         ...health,
         status: 'failed',

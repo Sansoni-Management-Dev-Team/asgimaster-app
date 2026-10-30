@@ -11,7 +11,13 @@ const rowSchema = z.object({
     id,
     state: z.string().trim().min(1),
     updated_at: z.iso.datetime({ offset: true }),
-    customer: z.object({ id, email: z.email() }),
+    customer: z.object({
+      id,
+      email: z
+        .string()
+        .nullish()
+        .transform((value) => value ?? null),
+    }),
     // The new Maxio catalogue permits subscriptions with no associated product.
     product: z.object({ id, handle: z.string().nullable() }).nullable(),
   }),
@@ -185,7 +191,16 @@ export function createMaxioAdapter(
                   a.reference.localeCompare(b.reference),
                 ),
               })),
-            evidence: { pages: number, subscriptions: seen.size, terminalEmptyPage: true },
+            evidence: {
+              pages: number,
+              subscriptions: seen.size,
+              terminalEmptyPage: true,
+              // Diagnostics only: syntax never gates collection or establishes identity.
+              missingEmails: [...members.values()].filter((member) => !member.email?.trim()).length,
+              emailSyntaxReview: [...members.values()].filter(
+                (member) => member.email?.trim() && !z.email().safeParse(member.email).success,
+              ).length,
+            },
           };
           return { status: 'complete', snapshot };
         }

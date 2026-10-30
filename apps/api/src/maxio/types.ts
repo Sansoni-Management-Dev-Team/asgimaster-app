@@ -11,7 +11,9 @@ export type MaxioSubscription = {
 export type MaxioMember = {
   reference: string;
   customerId: string;
-  email: string;
+  // Raw vendor value, never trimmed, lowercased or used here to infer a link.
+  // Missing is null; even a nonempty string may be unusable for identity matching.
+  email: string | null;
   subscriptions: MaxioSubscription[];
 };
 export type MaxioSnapshot = {
@@ -19,7 +21,14 @@ export type MaxioSnapshot = {
   site: string;
   collectedAt: string;
   members: MaxioMember[];
-  evidence: { pages: number; subscriptions: number; terminalEmptyPage: true };
+  evidence: {
+    pages: number;
+    subscriptions: number;
+    terminalEmptyPage: true;
+    // Operational diagnostics only, never authority for identity-link eligibility.
+    missingEmails: number;
+    emailSyntaxReview: number;
+  };
 };
 export type MaxioFailureCode =
   | 'not_configured'

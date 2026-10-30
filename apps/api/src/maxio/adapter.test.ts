@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { createMaxioAdapter, type MaxioOptions, type MaxioTransport } from './adapter.js';
 import { loadMaxioSites } from './config.js';
 import { projectMaxioForResolver } from './projection.js';
+import type { MaxioMember } from './types.js';
 const syntheticConfig = { subdomain: 'synthetic-au', apiKey: 'synthetic-key' };
 const fixedNow = () => new Date('2026-01-01T00:00:00Z');
 function row(
@@ -56,6 +57,8 @@ test('all pages and full customer subscription sets, site-qualified references, 
     pages: 3,
     subscriptions: 3,
     terminalEmptyPage: true,
+    missingEmails: 0,
+    emailSyntaxReview: 0,
   });
   assert.equal(result.snapshot.members.length, 2);
   const member = result.snapshot.members[0];
@@ -67,7 +70,7 @@ test('all pages and full customer subscription sets, site-qualified references, 
     new Set([member.subscriptions[1].reference]),
   );
   assert.equal(projected.records.length, 1);
-  assert.equal(JSON.stringify(projected).includes(member.email), false);
+  assert.equal(JSON.stringify(projected).includes(member.email!), false);
   assert.equal(JSON.stringify(projected).includes('customerId'), false);
   for (const unknown of [
     'unknown',
@@ -201,4 +204,52 @@ test('timeouts bound hung transports and body reads; malformed JSON is held', as
     region: 'AU',
     code: 'malformed',
   });
+});
+
+test('optional and unusual raw customer emails never discard complete subscription inputs or infer links', async () => {
+  const emails = [
+    undefined,
+    null,
+    '',
+    '   ',
+    'synthetic@example.test ',
+    'synthetic@localhost',
+    'synthetic@例え.テスト',
+    'not-an-email',
+  ];
+  const rows = emails.map((email, index) => ({
+    subscription: { ...row(index + 1).subscription, customer: { id: index + 1, email } },
+  }));
+  // A source customer lacking email still retains every subscription across pages.
+  const extra = { subscription: { ...row(100).subscription, customer: { id: 1 } } };
+  const source = adapter(async (url) =>
+    json(
+      url.searchParams.get('page') === '1'
+        ? rows
+        : url.searchParams.get('page') === '2'
+          ? [extra]
+          : [],
+    ),
+  );
+  const result = await source.collect();
+  assert.equal(result.status, 'complete');
+  if (result.status !== 'complete') return;
+  assert.equal(result.snapshot.members.length, emails.length);
+  for (let i = 0; i < emails.length; i++) {
+    const member: MaxioMember = result.snapshot.members.find(
+      (member) => member.customerId === String(i + 1),
+    )!;
+    assert.equal(member.email, emails[i] ?? null);
+    assert.equal(member.subscriptions.length, i === 0 ? 2 : 1);
+  }
+  assert.equal(result.snapshot.evidence.missingEmails, 4);
+  assert.equal(result.snapshot.evidence.emailSyntaxReview, 4);
+  assert.equal(result.snapshot.evidence.subscriptions, 9);
+  assert.deepEqual(projectMaxioForResolver(result.snapshot, new Set()).records, []);
+  const linked = projectMaxioForResolver(
+    result.snapshot,
+    new Set(['maxio:AU:synthetic-au:subscription:1']),
+  );
+  assert.equal(linked.records.length, 1);
+  assert.equal('email' in linked.records[0].facts, false);
 });
