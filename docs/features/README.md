@@ -17,9 +17,9 @@ The [high-level designs](../hldd/README.md) explain the agreed platform and inte
 
 ## Release scope
 
-D-26 defines Phase 1 as one member's complete, honest session: invitations and passwordless sign-in, staff administration, Maxio roster and identity/access resolution with its acceptance safeguards, onboarding, Home and Profile, included library playback/captions/progress, Intercom support, enquiries retained in the account and routed to CX, and release readiness including the restore gate. This scope is agreed; delivery sequencing is tracked outside `docs/`.
+D-26 defines Phase 1 as one member's complete, honest session: invitations and passwordless sign-in, staff administration, Maxio roster with a full nightly pull and identity/access resolution with its acceptance safeguards, onboarding, Home and Profile, included library playback/captions/progress, Intercom support, enquiries retained in the account and routed to CX, and release readiness including the restore gate. This scope is agreed; delivery sequencing is tracked outside `docs/`.
 
-Phase 1.5 contains the remaining V1 experiences: HubSpot writes, bulk identity review, the no-HubSpot report, catalogue editing and chapters, events, AaronAI, offboarding, push and client read access. Their specifications describe intended V1 behaviour without implying inclusion in Phase 1. Further changes to this scope require an explicit product decision.
+Phase 1.5 contains the remaining V1 experiences: verified Maxio source-change webhooks, HubSpot writes, bulk identity review, the no-HubSpot report, catalogue editing and chapters, events, AaronAI, offboarding, push and client read access. Their specifications describe intended V1 behaviour without implying inclusion in Phase 1. Further changes to this scope require an explicit product decision.
 
 ## Reading and maintenance rules
 
