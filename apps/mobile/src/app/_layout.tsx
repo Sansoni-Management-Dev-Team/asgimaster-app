@@ -1,4 +1,5 @@
 import '../global.css';
+import { withErrorReporting } from '@/lib/observability';
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -7,7 +8,7 @@ import { AppProviders } from '@/lib/providers';
 import { theme } from '@/theme';
 import { SessionRouteBoundary } from '@/features/session/session-provider';
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <AppProviders>
       <Stack
@@ -34,3 +35,5 @@ export default function RootLayout() {
     </AppProviders>
   );
 }
+
+export default withErrorReporting(RootLayout);

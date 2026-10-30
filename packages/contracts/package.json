@@ -8,6 +8,11 @@
       "types": "./dist/index.d.ts",
       "react-native": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./telemetry": {
+      "types": "./dist/telemetry.d.ts",
+      "react-native": "./src/telemetry.ts",
+      "default": "./dist/telemetry.js"
     }
   },
   "scripts": {
