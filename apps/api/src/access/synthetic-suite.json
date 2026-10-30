@@ -1,0 +1,1495 @@
+{
+  "format": "access-conformance/proposed-1",
+  "suite": "mlai-synthetic-access",
+  "revision": "1",
+  "origin": "synthetic",
+  "defaults": {
+    "memberId": "synthetic-member-a",
+    "evaluatedAt": "2030-01-15T00:00:00Z",
+    "sources": [],
+    "rules": {
+      "version": "synthetic-rules-1",
+      "capabilities": [
+        {
+          "id": "library",
+          "label": "Library"
+        },
+        {
+          "id": "coaching",
+          "label": "Coaching",
+          "unit": "session"
+        },
+        {
+          "id": "events",
+          "label": "Events",
+          "unit": "ticket"
+        }
+      ],
+      "rules": [
+        {
+          "id": "core",
+          "match": {
+            "facts": {
+              "productHandle": ["synthetic-core"],
+              "state": ["synthetic-active", "synthetic-payment-issue"]
+            }
+          },
+          "grants": [
+            {
+              "capability": "library",
+              "allowance": {
+                "kind": "unknown"
+              }
+            },
+            {
+              "capability": "coaching",
+              "allowance": {
+                "kind": "limited",
+                "amount": 2
+              }
+            }
+          ],
+          "label": {
+            "text": "Synthetic Core",
+            "priority": 1
+          }
+        },
+        {
+          "id": "plus",
+          "match": {
+            "facts": {
+              "productHandle": ["synthetic-plus"],
+              "state": ["synthetic-active", "synthetic-payment-issue"]
+            }
+          },
+          "grants": [
+            {
+              "capability": "library",
+              "allowance": {
+                "kind": "unknown"
+              }
+            },
+            {
+              "capability": "coaching",
+              "allowance": {
+                "kind": "limited",
+                "amount": 4
+              }
+            },
+            {
+              "capability": "events",
+              "allowance": {
+                "kind": "unlimited"
+              }
+            }
+          ],
+          "label": {
+            "text": "Synthetic Plus",
+            "priority": 2
+          }
+        },
+        {
+          "id": "pack",
+          "match": {
+            "facts": {
+              "productHandle": ["synthetic-pack"],
+              "state": ["synthetic-active", "synthetic-payment-issue"]
+            }
+          },
+          "grants": [
+            {
+              "capability": "coaching",
+              "allowance": {
+                "kind": "fact",
+                "fact": "quantity"
+              }
+            }
+          ]
+        }
+      ],
+      "states": {
+        "rules": [
+          {
+            "id": "active",
+            "state": "active",
+            "match": {
+              "facts": {
+                "state": ["synthetic-active"]
+              }
+            }
+          },
+          {
+            "id": "payment",
+            "state": "payment_issue",
+            "match": {
+              "facts": {
+                "state": ["synthetic-payment-issue"]
+              }
+            }
+          }
+        ],
+        "precedence": ["active", "payment_issue", "wind_down", "after_window", "none"]
+      },
+      "policies": {
+        "mixedAllowances": "unknown",
+        "correctionWithRuleGrant": "max"
+      }
+    },
+    "corrections": []
+  },
+  "cases": [
+    {
+      "id": "empty-sources",
+      "description": "No linked source records resolves to no state and no capabilities. Publication, not the resolver, keeps last-good access.",
+      "input": {
+        "sources": []
+      },
+      "expect": {
+        "state": "none",
+        "planLabel": null,
+        "capabilities": {}
+      }
+    },
+    {
+      "id": "single-subscription",
+      "description": "One active subscription grants its rule capabilities and label.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "union-max-not-sum",
+      "description": "Overlapping grants across sources use the larger allowance, never the sum, and the higher-priority label.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          },
+          {
+            "source": "synthetic:nz",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "nz-1",
+                "facts": {
+                  "productHandle": "synthetic-plus",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Plus",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 4
+          },
+          "events": {
+            "kind": "unlimited"
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-stays-unknown",
+      "description": "Two unknown allowances remain unknown, never zero.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              },
+              {
+                "ref": "au-2",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "fact-allowance",
+      "description": "A whole-number quantity fact sets a limited allowance, and the larger allowance wins.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              },
+              {
+                "ref": "au-2",
+                "facts": {
+                  "productHandle": "synthetic-pack",
+                  "state": "synthetic-active",
+                  "quantity": 6
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "proposed-mixed-unknown",
+      "description": "PROPOSED policy `unknown`: a missing quantity overlapping a known amount stays unknown with the known amount as a lower bound.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              },
+              {
+                "ref": "au-2",
+                "facts": {
+                  "productHandle": "synthetic-pack",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "unknown",
+            "atLeast": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "proposed-mixed-reject",
+      "description": "PROPOSED policy `reject`: the same overlap refuses to resolve.",
+      "input": {
+        "rules": {
+          "version": "synthetic-rules-1",
+          "capabilities": [
+            {
+              "id": "library",
+              "label": "Library"
+            },
+            {
+              "id": "coaching",
+              "label": "Coaching",
+              "unit": "session"
+            },
+            {
+              "id": "events",
+              "label": "Events",
+              "unit": "ticket"
+            }
+          ],
+          "rules": [
+            {
+              "id": "core",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-core"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "library",
+                  "allowance": {
+                    "kind": "unknown"
+                  }
+                },
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "limited",
+                    "amount": 2
+                  }
+                }
+              ],
+              "label": {
+                "text": "Synthetic Core",
+                "priority": 1
+              }
+            },
+            {
+              "id": "plus",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-plus"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "library",
+                  "allowance": {
+                    "kind": "unknown"
+                  }
+                },
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "limited",
+                    "amount": 4
+                  }
+                },
+                {
+                  "capability": "events",
+                  "allowance": {
+                    "kind": "unlimited"
+                  }
+                }
+              ],
+              "label": {
+                "text": "Synthetic Plus",
+                "priority": 2
+              }
+            },
+            {
+              "id": "pack",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-pack"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "fact",
+                    "fact": "quantity"
+                  }
+                }
+              ]
+            }
+          ],
+          "states": {
+            "rules": [
+              {
+                "id": "active",
+                "state": "active",
+                "match": {
+                  "facts": {
+                    "state": ["synthetic-active"]
+                  }
+                }
+              },
+              {
+                "id": "payment",
+                "state": "payment_issue",
+                "match": {
+                  "facts": {
+                    "state": ["synthetic-payment-issue"]
+                  }
+                }
+              }
+            ],
+            "precedence": ["active", "payment_issue", "wind_down", "after_window", "none"]
+          },
+          "policies": {
+            "mixedAllowances": "reject",
+            "correctionWithRuleGrant": "max"
+          }
+        },
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              },
+              {
+                "ref": "au-2",
+                "facts": {
+                  "productHandle": "synthetic-pack",
+                  "state": "synthetic-active",
+                  "quantity": null
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "conflict"
+      }
+    },
+    {
+      "id": "payment-issue-keeps-access",
+      "description": "A payment issue changes the state but does not remove capabilities.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-payment-issue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "payment_issue",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "state-precedence",
+      "description": "One active and one payment-issue subscription resolve to the configured higher-precedence state.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          },
+          {
+            "source": "synthetic:nz",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "nz-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-payment-issue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "cancelled-holds-nothing",
+      "description": "A cancelled-only member matches no rule and holds no access. This is not a wind-down policy.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-cancelled"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "none",
+        "planLabel": null,
+        "capabilities": {}
+      }
+    },
+    {
+      "id": "upgrade-cancel-plus-new",
+      "description": "An upgrade represented as a cancelled and a new subscription resolves from the live one.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-cancelled"
+                }
+              },
+              {
+                "ref": "au-2",
+                "facts": {
+                  "productHandle": "synthetic-plus",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Plus",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 4
+          },
+          "events": {
+            "kind": "unlimited"
+          }
+        }
+      }
+    },
+    {
+      "id": "missing-fact-never-matches",
+      "description": "A missing product fact matches no rule rather than being guessed.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": null,
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": null,
+        "capabilities": {}
+      }
+    },
+    {
+      "id": "correction-member-isolation",
+      "description": "Only the member's own correction applies; the other member's correction is ignored.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-b",
+            "capability": "library",
+            "action": "remove",
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          },
+          "events": {
+            "kind": "limited",
+            "amount": 1
+          }
+        },
+        "until": {
+          "events": "2030-04-01T00:00:00.000Z",
+          "library": null
+        }
+      }
+    },
+    {
+      "id": "correction-expiry-exclusive",
+      "description": "A correction stops applying at its expiry instant.",
+      "input": {
+        "evaluatedAt": "2030-04-01T00:00:00Z",
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "correction-future-record-ignored",
+      "description": "A correction recorded after the evaluation time does not apply.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-02-01T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "correction-remove",
+      "description": "A removal correction removes a rule-granted capability.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "coaching",
+            "action": "remove",
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          }
+        }
+      }
+    },
+    {
+      "id": "correction-amendment",
+      "description": "An amendment supersedes the earlier correction instead of rewriting it.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 3
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-02T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          },
+          "events": {
+            "kind": "limited",
+            "amount": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "correction-conflict-rejected",
+      "description": "Two active corrections for one capability are a conflict, not a guess.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "remove",
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "conflict"
+      }
+    },
+    {
+      "id": "proposed-correction-max",
+      "description": "PROPOSED policy `max`: a correction overlapping a rule grant takes the larger allowance, and the rule grant has no expiry.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "coaching",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 5
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 5
+          }
+        },
+        "until": {
+          "coaching": null
+        }
+      }
+    },
+    {
+      "id": "proposed-correction-replaces",
+      "description": "PROPOSED policy `correction`: the correction allowance applies while it is active, and the rule grant has no expiry.",
+      "input": {
+        "rules": {
+          "version": "synthetic-rules-1",
+          "capabilities": [
+            {
+              "id": "library",
+              "label": "Library"
+            },
+            {
+              "id": "coaching",
+              "label": "Coaching",
+              "unit": "session"
+            },
+            {
+              "id": "events",
+              "label": "Events",
+              "unit": "ticket"
+            }
+          ],
+          "rules": [
+            {
+              "id": "core",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-core"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "library",
+                  "allowance": {
+                    "kind": "unknown"
+                  }
+                },
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "limited",
+                    "amount": 2
+                  }
+                }
+              ],
+              "label": {
+                "text": "Synthetic Core",
+                "priority": 1
+              }
+            },
+            {
+              "id": "plus",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-plus"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "library",
+                  "allowance": {
+                    "kind": "unknown"
+                  }
+                },
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "limited",
+                    "amount": 4
+                  }
+                },
+                {
+                  "capability": "events",
+                  "allowance": {
+                    "kind": "unlimited"
+                  }
+                }
+              ],
+              "label": {
+                "text": "Synthetic Plus",
+                "priority": 2
+              }
+            },
+            {
+              "id": "pack",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-pack"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "fact",
+                    "fact": "quantity"
+                  }
+                }
+              ]
+            }
+          ],
+          "states": {
+            "rules": [
+              {
+                "id": "active",
+                "state": "active",
+                "match": {
+                  "facts": {
+                    "state": ["synthetic-active"]
+                  }
+                }
+              },
+              {
+                "id": "payment",
+                "state": "payment_issue",
+                "match": {
+                  "facts": {
+                    "state": ["synthetic-payment-issue"]
+                  }
+                }
+              }
+            ],
+            "precedence": ["active", "payment_issue", "wind_down", "after_window", "none"]
+          },
+          "policies": {
+            "mixedAllowances": "unknown",
+            "correctionWithRuleGrant": "correction"
+          }
+        },
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "coaching",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 1
+          }
+        },
+        "until": {
+          "coaching": null
+        }
+      }
+    },
+    {
+      "id": "proposed-correction-overlap-reject",
+      "description": "PROPOSED policy `reject`: a correction overlapping a rule grant refuses to resolve.",
+      "input": {
+        "rules": {
+          "version": "synthetic-rules-1",
+          "capabilities": [
+            {
+              "id": "library",
+              "label": "Library"
+            },
+            {
+              "id": "coaching",
+              "label": "Coaching",
+              "unit": "session"
+            },
+            {
+              "id": "events",
+              "label": "Events",
+              "unit": "ticket"
+            }
+          ],
+          "rules": [
+            {
+              "id": "core",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-core"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "library",
+                  "allowance": {
+                    "kind": "unknown"
+                  }
+                },
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "limited",
+                    "amount": 2
+                  }
+                }
+              ],
+              "label": {
+                "text": "Synthetic Core",
+                "priority": 1
+              }
+            },
+            {
+              "id": "plus",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-plus"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "library",
+                  "allowance": {
+                    "kind": "unknown"
+                  }
+                },
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "limited",
+                    "amount": 4
+                  }
+                },
+                {
+                  "capability": "events",
+                  "allowance": {
+                    "kind": "unlimited"
+                  }
+                }
+              ],
+              "label": {
+                "text": "Synthetic Plus",
+                "priority": 2
+              }
+            },
+            {
+              "id": "pack",
+              "match": {
+                "facts": {
+                  "productHandle": ["synthetic-pack"],
+                  "state": ["synthetic-active", "synthetic-payment-issue"]
+                }
+              },
+              "grants": [
+                {
+                  "capability": "coaching",
+                  "allowance": {
+                    "kind": "fact",
+                    "fact": "quantity"
+                  }
+                }
+              ]
+            }
+          ],
+          "states": {
+            "rules": [
+              {
+                "id": "active",
+                "state": "active",
+                "match": {
+                  "facts": {
+                    "state": ["synthetic-active"]
+                  }
+                }
+              },
+              {
+                "id": "payment",
+                "state": "payment_issue",
+                "match": {
+                  "facts": {
+                    "state": ["synthetic-payment-issue"]
+                  }
+                }
+              }
+            ],
+            "precedence": ["active", "payment_issue", "wind_down", "after_window", "none"]
+          },
+          "policies": {
+            "mixedAllowances": "unknown",
+            "correctionWithRuleGrant": "reject"
+          }
+        },
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "coaching",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 5
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "conflict"
+      }
+    },
+    {
+      "id": "correction-needs-expiry",
+      "description": "A correction without an expiry is invalid input.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "evaluation-time-required",
+      "description": "Resolution without an explicit evaluation time is invalid input.",
+      "input": {
+        "evaluatedAt": null,
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    }
+  ]
+}

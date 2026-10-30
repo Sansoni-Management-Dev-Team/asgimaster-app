@@ -85,6 +85,7 @@ Acceptance also requires:
 - D-31: client conformance format and pinned suite delivery. Language-neutral fixtures are proposed.
 - D-36: who operates/builds corrections, application admin or the client's console, without weakening D-01 audit and expiry requirements.
 - D-37: completeness floor, stale-input alerts, rolling-brake period/thresholds, cancellation settle interval and device fallback trust period.
+- Allowance and correction semantics not yet agreed: how a known amount combines with an unknown allowance for the same capability, how a correction's allowance combines with a rule grant of the same capability, how two active corrections for one capability interact, and which state a member holds when their subscriptions classify differently. The [resolver](../../apps/api/src/access/resolver.ts) makes each versioned rule set choose explicitly or refuse to resolve; it does not guess.
 - CON-25: reviewed whole-base access diff before resolver code deployment is proposed in addition to required rule previews.
 - D-34 and CON-24: see the proposed test-member/write-isolation policy and enquiry conflict in [HLDD 03](../hldd/03-integrations.md#unresolved-integration-choices).
 
