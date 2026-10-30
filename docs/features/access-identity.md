@@ -16,7 +16,7 @@ Klaviyo is not an identity or membership source. A Maxio member without a HubSpo
 
 ## Identity and roster
 
-A member record is established when a person appears with an in-scope Maxio subscription and is retained when they leave (CON-19). A returning person must recover the same member identity and progress. Multiple subscriptions do not imply multiple people.
+A member record is established when a person appears with an in-scope Maxio subscription and is retained when they leave (CON-19). A returning person must recover the same member identity and progress. Multiple subscriptions do not imply multiple people. Source collection retains separate AU and NZ records and the full subscription sets without linking records itself. Identity linking follows the rules below; completeness and failure handling are defined in [refresh and failure containment](#refresh-and-failure-containment).
 
 Deterministic derived matches may use exact email equality and the client's crosswalk references. Human link/unlink assertions take precedence over derived matches and are append-only, recording actor, time, reason and evidence. The client's adjudicated merges must be preserved as assertions with their provenance; they are not permission to infer other merges.
 
