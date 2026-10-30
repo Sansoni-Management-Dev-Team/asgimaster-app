@@ -25,6 +25,7 @@ function trustedPeer(address: string, cidrs: string[]) {
 export function createApp(
   options: {
     services?: Services;
+    reportError?: (error: Error) => void;
     peerAddress?: (c: Context) => string | undefined;
     webRoot?: string;
   } = {},
@@ -123,8 +124,16 @@ export function createApp(
   app.notFound((c) => c.json({ error: { code: 'NOT_FOUND', message: 'Route not found.' } }, 404));
   app.onError((error, c) => {
     c.header('Cache-Control', 'no-store');
-    if (error instanceof AppError)
+    if (error instanceof AppError) {
+      if (error.status >= 500) {
+        try {
+          options.reportError?.(error);
+        } catch {
+          /* Reporting is best effort. */
+        }
+      }
       return c.json({ error: { code: error.code, message: error.message } }, error.status);
+    }
     if (error instanceof APIError && error.statusCode < 500)
       return c.json(
         {
@@ -137,6 +146,11 @@ export function createApp(
       );
     // Neither request URLs nor raw exceptions are logged: both can contain credentials.
     console.error('API request failed.');
+    try {
+      options.reportError?.(error);
+    } catch {
+      // Reporting must never change the member response or health of the API.
+    }
     return c.json(
       { error: { code: 'SERVICE_UNAVAILABLE', message: 'Service unavailable. Please try again.' } },
       503,
