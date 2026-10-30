@@ -8,6 +8,9 @@ import { z } from 'zod';
 // must not know any upstream product or status name.
 
 const id = z.string().trim().min(1).max(200);
+// Fact names are kept exactly as supplied. Trimming could merge two distinct
+// keys and make the surviving value depend on key order.
+const factName = z.string().min(1).max(200);
 const instant = z.iso
   .datetime({ offset: true })
   .transform((value) => new Date(value).toISOString());
@@ -29,7 +32,7 @@ export type FactValue = z.infer<typeof FactValueSchema>;
 // is absent or null, never a placeholder.
 export const SourceRecordSchema = z.strictObject({
   ref: id,
-  facts: z.record(id, FactValueSchema),
+  facts: z.record(factName, FactValueSchema),
 });
 export type SourceRecord = z.infer<typeof SourceRecordSchema>;
 
@@ -44,13 +47,13 @@ const limited = z.strictObject({ kind: z.literal('limited'), amount: z.number().
 const unlimited = z.strictObject({ kind: z.literal('unlimited') });
 const unknown = z.strictObject({ kind: z.literal('unknown') });
 export const AllowanceSchema = z.discriminatedUnion('kind', [limited, unlimited, unknown]);
-// A grant may take its amount from a numeric record fact. A missing or
-// non-numeric fact yields an unknown allowance, never zero (ENT-04).
+// A grant may take its amount from a record fact holding a non-negative safe
+// integer. Any other value yields an unknown allowance, never zero (ENT-04).
 const GrantAllowanceSchema = z.discriminatedUnion('kind', [
   limited,
   unlimited,
   unknown,
-  z.strictObject({ kind: z.literal('fact'), fact: id }),
+  z.strictObject({ kind: z.literal('fact'), fact: factName }),
 ]);
 export type ResolvedAllowance =
   | { kind: 'limited'; amount: number }
@@ -66,7 +69,7 @@ export type ResolvedAllowance =
 const MatchSchema = z.strictObject({
   sources: z.array(id).min(1).optional(),
   facts: z
-    .record(id, z.array(z.union([z.string(), z.number(), z.boolean()])).min(1))
+    .record(factName, z.array(z.union([z.string(), z.number(), z.boolean()])).min(1))
     .refine((facts) => Object.keys(facts).length > 0, {
       message: 'A match needs at least one fact condition.',
     }),
@@ -133,8 +136,15 @@ export const RuleSetSchema = z
   });
 export type RuleSet = z.input<typeof RuleSetSchema>;
 
-// Corrections are append-only. An amendment is a new record that supersedes an
-// earlier one. Reason and expiry are mandatory (ENT-06, CON-17).
+// Corrections are append-only. Reason and expiry are mandatory (ENT-06,
+// CON-17). A correction cannot apply before it is recorded, so it takes effect
+// at the later of recordedAt and effectiveFrom, and applies until just before
+// expiresAt.
+//
+// An amendment is a new record that supersedes an earlier correction for the
+// same member and capability. The earlier correction stops applying once the
+// amendment takes effect, and stays superseded after the amendment expires:
+// expiry never revives a replaced correction.
 export const CorrectionSchema = z
   .strictObject({
     id,
@@ -155,12 +165,9 @@ export const CorrectionSchema = z
       message: 'A grant needs an allowance and a removal must not have one.',
     },
   )
-  .refine(
-    (correction) => correction.expiresAt > (correction.effectiveFrom ?? correction.recordedAt),
-    {
-      message: 'A correction must expire after it takes effect.',
-    },
-  );
+  .refine((correction) => correction.expiresAt > takesEffect(correction), {
+    message: 'A correction must expire after it is recorded and takes effect.',
+  });
 export type Correction = z.input<typeof CorrectionSchema>;
 
 export const ResolverInputSchema = z
@@ -176,6 +183,49 @@ export const ResolverInputSchema = z
   })
   .refine((input) => unique(input.corrections.map((correction) => correction.id)), {
     message: 'Correction ids must be unique.',
+  })
+  .superRefine((input, ctx) => {
+    input.sources.forEach((snapshot, index) => {
+      if (snapshot.asAt > input.evaluatedAt)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['sources', index, 'asAt'],
+          message: 'A source cannot be fresher than the evaluation time.',
+        });
+    });
+    // Check this member's amendment history as it stood at the evaluation
+    // time. The caller supplies the member's full correction history, including
+    // expired records, so every amendment can find what it supersedes. Other
+    // members' history is not checked here and never applies.
+    const byId = new Map(input.corrections.map((correction) => [correction.id, correction]));
+    const amended = new Set<string>();
+    input.corrections.forEach((correction, index) => {
+      if (correction.memberId !== input.memberId || correction.recordedAt > input.evaluatedAt)
+        return;
+      if (correction.supersedes === undefined) return;
+      const target = byId.get(correction.supersedes);
+      const problem =
+        correction.supersedes === correction.id
+          ? 'A correction cannot supersede itself.'
+          : !target
+            ? 'An amendment must supersede a correction in the input.'
+            : target.memberId !== input.memberId
+              ? "An amendment cannot supersede another member's correction."
+              : target.capability !== correction.capability
+                ? 'An amendment must keep the capability of the correction it supersedes.'
+                : !(target.recordedAt < correction.recordedAt)
+                  ? 'An amendment must be recorded after the correction it supersedes.'
+                  : amended.has(target.id)
+                    ? 'A correction can be superseded only once.'
+                    : undefined;
+      amended.add(correction.supersedes);
+      if (problem)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['corrections', index, 'supersedes'],
+          message: problem,
+        });
+    });
   });
 export type ResolverInput = z.input<typeof ResolverInputSchema>;
 
@@ -312,19 +362,21 @@ export function resolveAccess(raw: ResolverInput): Resolution {
   }
 
   // Corrections apply after rules. Only this member's corrections recorded by
-  // the evaluation time count, and an amendment hides the record it
-  // supersedes. More than one active correction for a capability is a conflict
+  // the evaluation time count, and an amendment that has taken effect hides
+  // the record it supersedes. More than one active correction for a capability is a conflict
   // for staff to settle by amendment, not something to guess.
   const now = input.evaluatedAt;
   const conflicts: AccessConflict[] = [];
   const visible = input.corrections.filter(
     (correction) => correction.memberId === input.memberId && correction.recordedAt <= now,
   );
-  const superseded = new Set(visible.map((correction) => correction.supersedes));
+  const superseded = new Set(
+    visible.filter((amendment) => takesEffect(amendment) <= now).map((c) => c.supersedes),
+  );
   const active = visible.filter(
     (correction) =>
       !superseded.has(correction.id) &&
-      (correction.effectiveFrom ?? correction.recordedAt) <= now &&
+      takesEffect(correction) <= now &&
       now < correction.expiresAt,
   );
   const catalogue = new Map(rules.capabilities.map((capability) => [capability.id, capability]));
@@ -424,7 +476,13 @@ export function resolveAccess(raw: ResolverInput): Resolution {
       .sort(byId),
     sources,
     oldestSourceAsAt: sources.map((snapshot) => snapshot.asAt).sort(compare)[0] ?? null,
-    diagnostics: { ungrantedRecords, unclassifiedRecords, missingFacts },
+    diagnostics: {
+      ungrantedRecords,
+      unclassifiedRecords,
+      missingFacts: [...new Map(missingFacts.map((f) => [canonicalJson(f), f])).values()].sort(
+        byProvenance,
+      ),
+    },
   };
   return { ...resolution, hash: hashCanonical(resolution) };
 }
@@ -494,9 +552,14 @@ function allowanceFor(
 ): ResolvedAllowance {
   if (allowance.kind !== 'fact') return allowance;
   const amount = Object.hasOwn(facts, allowance.fact) ? facts[allowance.fact] : null;
-  return typeof amount === 'number' && Number.isInteger(amount) && amount >= 0
+  return typeof amount === 'number' && Number.isSafeInteger(amount) && amount >= 0
     ? { kind: 'limited', amount }
     : { kind: 'unknown' };
+}
+
+function takesEffect(correction: { recordedAt: string; effectiveFrom?: string }) {
+  const { recordedAt, effectiveFrom = recordedAt } = correction;
+  return effectiveFrom > recordedAt ? effectiveFrom : recordedAt;
 }
 
 // Code-unit order, independent of locale.

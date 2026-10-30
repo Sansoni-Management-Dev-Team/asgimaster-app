@@ -101,18 +101,44 @@ function attempt(input: ResolverInput) {
 const describe = (outcome: ReturnType<typeof attempt>) =>
   outcome.resolution ? 'a resolution' : `${outcome.rejected} rejection`;
 
-function reverseLists(input: ResolverInput): ResolverInput {
+// Reverses every list whose order carries no meaning, and the key order of
+// fact maps. State precedence is ordered by definition and stays as it is.
+export function reverseLists(input: ResolverInput): ResolverInput {
+  const facts = <T>(map: Record<string, T>) => Object.fromEntries(Object.entries(map).reverse());
+  const match = (m: Match) => ({
+    ...m,
+    ...(m.sources && { sources: [...m.sources].reverse() }),
+    facts: Object.fromEntries(
+      Object.entries(m.facts)
+        .reverse()
+        .map(([name, allowed]) => [name, [...allowed].reverse()]),
+    ),
+  });
   return {
     ...input,
-    sources: [...input.sources]
-      .reverse()
-      .map((snapshot) => ({ ...snapshot, records: [...snapshot.records].reverse() })),
+    sources: [...input.sources].reverse().map((snapshot) => ({
+      ...snapshot,
+      records: [...snapshot.records]
+        .reverse()
+        .map((record) => ({ ...record, facts: facts(record.facts) })),
+    })),
     rules: {
       ...input.rules,
       capabilities: [...input.rules.capabilities].reverse(),
-      rules: [...input.rules.rules].reverse(),
-      states: { ...input.rules.states, rules: [...input.rules.states.rules].reverse() },
+      rules: [...input.rules.rules].reverse().map((rule) => ({
+        ...rule,
+        match: match(rule.match),
+        grants: [...rule.grants].reverse(),
+      })),
+      states: {
+        ...input.rules.states,
+        rules: [...input.rules.states.rules]
+          .reverse()
+          .map((rule) => ({ ...rule, match: match(rule.match) })),
+      },
     },
     corrections: [...input.corrections].reverse(),
   };
 }
+
+type Match = ResolverInput['rules']['rules'][number]['match'];

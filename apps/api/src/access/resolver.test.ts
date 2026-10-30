@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { mock, test } from 'node:test';
+import { reverseLists } from './conformance.js';
 import {
   AccessConflictError,
   canonicalJson,
@@ -384,4 +385,141 @@ test('fact allowances accept only whole non-negative numbers', () => {
 
 test('canonical JSON sorts keys and omits undefined members', () => {
   assert.equal(canonicalJson({ b: 1, a: [{ d: undefined, c: 'x' }] }), '{"a":[{"c":"x"}],"b":1}');
+});
+
+test('supersession history is validated with a specific reason', () => {
+  const rejects = (corrections: Correction[], pattern: RegExp) =>
+    assert.throws(
+      () => resolveAccess({ ...base, corrections }),
+      (error) =>
+        error instanceof ResolverInputError &&
+        error.issues.some(
+          (issue) => /^corrections\.\d+\.supersedes: /.test(issue) && pattern.test(issue),
+        ),
+    );
+  const later = { recordedAt: '2030-01-02T00:00:00Z' };
+  rejects([correction({ supersedes: 'c-1' })], /itself/);
+  rejects([correction({ id: 'c-2', supersedes: 'c-1' })], /in the input/);
+  rejects(
+    [
+      correction({ memberId: 'synthetic-member-b' }),
+      correction({ id: 'c-2', supersedes: 'c-1', ...later }),
+    ],
+    /another member/,
+  );
+  rejects(
+    [correction(), correction({ id: 'c-2', capability: 'coaching', supersedes: 'c-1', ...later })],
+    /keep the capability/,
+  );
+  rejects(
+    [correction({ supersedes: 'c-2' }), correction({ id: 'c-2', supersedes: 'c-1', ...later })],
+    /recorded after/,
+  );
+  rejects(
+    [
+      correction(),
+      correction({ id: 'c-2', supersedes: 'c-1', ...later }),
+      correction({ id: 'c-3', supersedes: 'c-1', recordedAt: '2030-01-03T00:00:00Z' }),
+    ],
+    /only once/,
+  );
+  // History recorded after the evaluation time is not yet part of the record.
+  const future = resolveAccess({
+    ...base,
+    corrections: [
+      correction(),
+      correction({ id: 'c-2', supersedes: 'missing', recordedAt: '2030-02-01T00:00:00Z' }),
+    ],
+  });
+  assert.deepEqual(
+    future.corrections.map((c) => c.id),
+    ['c-1'],
+  );
+});
+
+test('an amendment takes over only once it takes effect, and expiry never revives', () => {
+  const corrections = [
+    correction(),
+    correction({
+      id: 'c-2',
+      action: 'remove',
+      allowance: undefined,
+      supersedes: 'c-1',
+      recordedAt: '2030-01-10T00:00:00Z',
+      effectiveFrom: '2030-02-01T00:00:00Z',
+      expiresAt: '2030-03-01T00:00:00Z',
+    }),
+  ];
+  const coreOnly = {
+    ...base,
+    sources: [{ ...base.sources[0], records: [base.sources[0].records[0]] }],
+  };
+  const events = (evaluatedAt: string) =>
+    resolveAccess({ ...coreOnly, evaluatedAt, corrections }).capabilities.find(
+      (c) => c.id === 'events',
+    )?.allowance;
+  assert.deepEqual(events('2030-01-31T23:59:59.999Z'), { kind: 'limited', amount: 1 });
+  assert.equal(events('2030-02-01T00:00:00Z'), undefined);
+  assert.equal(events('2030-03-15T00:00:00Z'), undefined);
+  assert.throws(
+    () =>
+      resolveAccess({
+        ...base,
+        corrections: [
+          correction({ recordedAt: '2030-05-01T00:00:00Z', effectiveFrom: '2030-01-01T00:00:00Z' }),
+        ],
+      }),
+    /expire after it is recorded/,
+  );
+});
+
+test('equivalent rule sets hash identically whatever their nested order', () => {
+  const rules = {
+    ...base.rules,
+    rules: [
+      {
+        id: 'two-facts',
+        match: {
+          facts: {
+            productHandle: ['synthetic-pack', 'synthetic-core'],
+            state: ['synthetic-active'],
+          },
+        },
+        grants: [
+          { capability: 'coaching', allowance: { kind: 'fact' as const, fact: 'qa' } },
+          { capability: 'events', allowance: { kind: 'fact' as const, fact: 'qb' } },
+          { capability: 'events', allowance: { kind: 'fact' as const, fact: 'qb' } },
+        ],
+      },
+    ],
+  };
+  const input = { ...base, rules };
+  const resolution = resolveAccess(input);
+  assert.deepEqual(
+    resolution.diagnostics.missingFacts.map((f) => [f.record, f.fact]),
+    [
+      ['au-1', 'qa'],
+      ['au-2', 'qa'],
+      ['au-1', 'qb'],
+      ['au-2', 'qb'],
+    ],
+  );
+  assert.equal(resolveAccess(reverseLists(input)).hash, resolution.hash);
+});
+
+test('explicit limited amounts must be safe integers', () => {
+  const grant = (amount: number) => () =>
+    resolveAccess({
+      ...base,
+      corrections: [correction({ allowance: { kind: 'limited', amount } })],
+    });
+  assert.doesNotThrow(grant(Number.MAX_SAFE_INTEGER));
+  assert.throws(grant(Number.MAX_SAFE_INTEGER + 1), ResolverInputError);
+});
+
+test('a source newer than the evaluation time is rejected; equal instants with offsets are not', () => {
+  const asAt = (value: string) => () =>
+    resolveAccess({ ...base, sources: [{ ...base.sources[1], asAt: value }] });
+  assert.doesNotThrow(asAt('2030-01-15T10:00:00+10:00'));
+  assert.throws(asAt('2030-01-15T10:00:00.001+10:00'), /fresher than the evaluation/);
 });

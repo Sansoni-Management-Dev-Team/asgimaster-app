@@ -1467,6 +1467,850 @@
       }
     },
     {
+      "id": "amendment-pending-keeps-original",
+      "description": "An amendment recorded but not yet in effect leaves the correction it supersedes applying.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 3
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-10T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1",
+            "effectiveFrom": "2030-02-01T00:00:00Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          },
+          "events": {
+            "kind": "limited",
+            "amount": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "amendment-in-effect-replaces",
+      "description": "Once in effect, the amendment replaces the correction it supersedes.",
+      "input": {
+        "evaluatedAt": "2030-02-01T00:00:00Z",
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 3
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-10T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1",
+            "effectiveFrom": "2030-02-01T00:00:00Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          },
+          "events": {
+            "kind": "limited",
+            "amount": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "amendment-expiry-no-revival",
+      "description": "A replaced correction stays replaced after its amendment expires.",
+      "input": {
+        "evaluatedAt": "2030-03-15T00:00:00Z",
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 3
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-10T00:00:00Z",
+            "expiresAt": "2030-03-01T00:00:00Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "correction-recorded-after-expiry",
+      "description": "A correction recorded after its own expiry can never apply and is invalid input, so it cannot hide the record it names.",
+      "input": {
+        "evaluatedAt": "2030-06-01T00:00:00Z",
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-12-01T00:00:00Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-05-01T00:00:00Z",
+            "expiresAt": "2030-02-01T00:00:00Z",
+            "supersedes": "c-1",
+            "effectiveFrom": "2030-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "supersede-self",
+      "description": "A correction that supersedes itself is invalid input.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "supersede-missing",
+      "description": "An amendment naming a correction that is not in the input is invalid input.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "supersede-other-member",
+      "description": "An amendment naming another member's correction is invalid input.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-b",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-02T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "supersede-other-capability",
+      "description": "An amendment for a different capability is invalid input rather than a silent removal.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "coaching",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-02T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "supersede-cycle",
+      "description": "Two corrections that supersede each other are invalid input.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-2"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-02T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "supersede-twice",
+      "description": "Two amendments of one correction make the history ambiguous and are invalid input.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-02T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          },
+          {
+            "id": "c-3",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-03T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "other-member-history-ignored",
+      "description": "Another member's amendments, valid or not, neither apply to nor block this member.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          },
+          {
+            "id": "c-2",
+            "memberId": "synthetic-member-b",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-02T00:00:00Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "c-1"
+          },
+          {
+            "id": "c-3",
+            "memberId": "synthetic-member-b",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z",
+            "supersedes": "missing"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          },
+          "events": {
+            "kind": "limited",
+            "amount": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "offset-instants",
+      "description": "Instants with offsets compare as instants: expiry at an offset-equivalent evaluation time is exclusive, and a source as fresh as the evaluation is accepted.",
+      "input": {
+        "evaluatedAt": "2030-04-01T10:00:00+10:00",
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          },
+          {
+            "source": "synthetic:nz",
+            "asAt": "2030-03-31T12:00:00-12:00",
+            "records": []
+          }
+        ],
+        "corrections": [
+          {
+            "id": "c-1",
+            "memberId": "synthetic-member-a",
+            "capability": "events",
+            "action": "grant",
+            "allowance": {
+              "kind": "limited",
+              "amount": 1
+            },
+            "reason": "Synthetic correction",
+            "recordedBy": "synthetic-staff",
+            "recordedAt": "2030-01-01T00:00:00.000Z",
+            "expiresAt": "2030-04-01T00:00:00.000Z"
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "source-fresher-than-evaluation",
+      "description": "A source dated after the evaluation time is invalid input.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-15T10:00:01+10:00",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "rejected": "input"
+      }
+    },
+    {
+      "id": "fact-names-exact",
+      "description": "Fact names are exact: a name with surrounding spaces is a different fact and never merges with the real one.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-1",
+                "facts": {
+                  " productHandle": "synthetic-plus",
+                  "productHandle": "synthetic-core",
+                  "state": "synthetic-active"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": "Synthetic Core",
+        "capabilities": {
+          "library": {
+            "kind": "unknown"
+          },
+          "coaching": {
+            "kind": "limited",
+            "amount": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "fact-allowance-safe-integer",
+      "description": "The largest safe integer quantity is a limited allowance.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-2",
+                "facts": {
+                  "productHandle": "synthetic-pack",
+                  "state": "synthetic-active",
+                  "quantity": 9007199254740991
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": null,
+        "capabilities": {
+          "coaching": {
+            "kind": "limited",
+            "amount": 9007199254740991
+          }
+        }
+      }
+    },
+    {
+      "id": "fact-allowance-unsafe-integer",
+      "description": "A quantity beyond the safe integer range is unknown, never a rounded amount.",
+      "input": {
+        "sources": [
+          {
+            "source": "synthetic:au",
+            "asAt": "2030-01-14T23:00:00.000Z",
+            "records": [
+              {
+                "ref": "au-2",
+                "facts": {
+                  "productHandle": "synthetic-pack",
+                  "state": "synthetic-active",
+                  "quantity": 9007199254740992
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "state": "active",
+        "planLabel": null,
+        "capabilities": {
+          "coaching": {
+            "kind": "unknown"
+          }
+        }
+      }
+    },
+    {
       "id": "evaluation-time-required",
       "description": "Resolution without an explicit evaluation time is invalid input.",
       "input": {
