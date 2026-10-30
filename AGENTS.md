@@ -60,6 +60,16 @@ Run these from the repository root.
 - Never put secrets in the repo. Use EAS secrets or environment variables for anything sensitive.
 - Match the existing style. Read the neighbouring code before adding to it.
 
+## Delivery workflow
+
+- Delivery scope and sequencing live in Linear, in the [Studio] Master App project and its documents.
+- Work on a branch named after the Linear issue (`stu-<n>-<slug>`), with one PR per change. Never push to `main` or merge a PR: merging to `main` deploys to `develop`.
+- Run `npm run lint`, `npm run typecheck` and `npm test` from the repository root before opening a PR.
+- Where a requirement is ambiguous, state the reading you took in the PR and on the issue. Where it needs a product decision, set out the options on the issue rather than choosing silently.
+- Check UI changes on a device, not only in typecheck or the web build.
+- Don't change signing, the bundle ID or the Apple team without asking.
+- Test with synthetic members only. Member data never goes in commits, logs, fixtures or PRs.
+
 ## Product context
 
 Use the native `linear` CLI for Linear work. A repository-root `.linear.toml` can select this repository's workspace using its `workspace` setting; `linear auth login` stores the key in the system keyring. See `docs/linear.md`. Verify the workspace before accessing the backlog; do not assume the global default is this project's workspace.
