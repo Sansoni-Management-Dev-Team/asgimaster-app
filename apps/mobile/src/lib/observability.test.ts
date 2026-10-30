@@ -1,6 +1,11 @@
 import { beforeEach, expect, it, jest } from '@jest/globals';
 
 const mockInit = jest.fn();
+jest.mock('expo-updates', () => ({ channel: null }));
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { expoConfig: { version: '1.0.0' } },
+}));
 jest.mock('@sentry/react-native', () => ({
   init: (options: unknown) => mockInit(options),
   wrap: (component: unknown) => component,
@@ -19,9 +24,9 @@ it('does not initialize SDK without explicit DSN and deployment environment', ()
   });
   expect(mockInit).not.toHaveBeenCalled();
 });
-it('prevents native transport initialization and scrubs JS events', () => {
+it('configures disabled native reporting and a scrub hook (SDK mocked; no device envelope verification)', () => {
   process.env.EXPO_PUBLIC_SENTRY_DSN = 'https://public@example.test/1';
-  process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT = 'production';
+  process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT = 'develop';
   jest.isolateModules(() => {
     jest.requireActual('./observability');
   });

@@ -1,3 +1,4 @@
+import { ConfigError } from './config-error.js';
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { PoolConfig } from 'pg';
@@ -19,15 +20,27 @@ export type Config = {
   memberSources?: SourceConfiguration;
 };
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  try {
+    return readConfig(env);
+  } catch (error) {
+    if (error instanceof ConfigError) throw error;
+    throw new ConfigError('INVALID_SETTINGS');
+  }
+}
+function readConfig(env: NodeJS.ProcessEnv): Config {
   const production = env.NODE_ENV === 'production';
   const required = (key: string) => z.string().min(1).parse(env[key]);
-  const url = new URL(required('BETTER_AUTH_URL'));
+  let url: URL;
+  try {
+    url = new URL(required('BETTER_AUTH_URL'));
+  } catch {
+    throw new ConfigError('AUTH_ORIGIN');
+  }
   if (url.pathname !== '/' || (production && url.protocol !== 'https:'))
-    throw new Error('Use a canonical HTTPS origin for BETTER_AUTH_URL');
+    throw new ConfigError('AUTH_ORIGIN');
   const secret = z.string().min(32).parse(env.BETTER_AUTH_SECRET);
   const outboxKey = z.string().min(32).parse(env.OUTBOX_ENCRYPTION_KEY);
-  if (Buffer.from(outboxKey, 'base64').length !== 32)
-    throw new Error('OUTBOX_ENCRYPTION_KEY must be 32 random bytes, base64 encoded');
+  if (Buffer.from(outboxKey, 'base64').length !== 32) throw new ConfigError('OUTBOX_KEY');
   const database: PoolConfig = env.DATABASE_URL
     ? { connectionString: env.DATABASE_URL }
     : {
@@ -46,18 +59,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         (key) => /^ssl/i.test(key) || key.toLowerCase() === 'uselibpqcompat',
       )
     )
-      throw new Error('DATABASE_URL must not contain SSL override parameters');
+      throw new ConfigError('DATABASE_TLS');
     const ca = env.DATABASE_CA_FILE
       ? readFileSync(env.DATABASE_CA_FILE, 'utf8')
       : Buffer.from(required('DATABASE_CA_BASE64'), 'base64').toString('utf8');
-    if (!ca.includes('-----BEGIN CERTIFICATE-----'))
-      throw new Error('Supply a reviewed database CA bundle');
+    if (!ca.includes('-----BEGIN CERTIFICATE-----')) throw new ConfigError('DATABASE_CA');
     database.ssl = { rejectUnauthorized: true, ca };
   }
   const mailTransport = z
     .enum(['capture', 'ses'])
     .parse(env.MAIL_TRANSPORT ?? (production ? 'ses' : 'capture'));
-  if (production && mailTransport !== 'ses') throw new Error('Production requires SES transport');
+  if (production && mailTransport !== 'ses') throw new ConfigError('MAIL_TRANSPORT');
   return {
     database,
     url: url.origin,

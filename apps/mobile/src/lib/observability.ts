@@ -1,7 +1,14 @@
+import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
-import { reportingEnvironment, scrubErrorEvent } from '@mlai-sansoni/contracts/telemetry';
+import { mobileReportingEnvironment, scrubErrorEvent } from '@mlai-sansoni/contracts/telemetry';
 
-const environment = reportingEnvironment(process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT);
+const environment = mobileReportingEnvironment(
+  Updates.channel,
+  __DEV__,
+  process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT,
+  !Updates.isEnabled || Updates.isEmbeddedLaunch,
+);
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
 if (dsn && environment) {
@@ -22,7 +29,11 @@ if (dsn && environment) {
     attachViewHierarchy: false,
     maxBreadcrumbs: 0,
     beforeBreadcrumb: () => null,
-    beforeSend: (event) => scrubErrorEvent(event, environment),
+    beforeSend: (event) =>
+      scrubErrorEvent(event, environment, {
+        component: 'mobile',
+        version: Constants.expoConfig?.version,
+      }),
     beforeSendTransaction: () => null,
     enableLogs: false,
     sendClientReports: false,

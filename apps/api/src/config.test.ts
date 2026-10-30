@@ -70,3 +70,19 @@ test('SES feedback address is optional and validates a single email mailbox', ()
   ])
     assert.throws(() => loadConfig({ ...production, MAIL_FEEDBACK_TO: address }));
 });
+
+test('configuration failures expose only approved static codes/messages', async () => {
+  const { configFailure } = await import('./config-error.js');
+  try {
+    loadConfig({ ...production, BETTER_AUTH_URL: 'https://synthetic:secret@example.test/private' });
+  } catch (error) {
+    assert.equal(configFailure(error)?.code, 'AUTH_ORIGIN');
+    assert.ok(!JSON.stringify(configFailure(error)).includes('secret'));
+  }
+  try {
+    loadConfig({ ...production, MAIL_FROM: 'synthetic-secret' });
+  } catch (error) {
+    assert.equal(configFailure(error)?.code, 'INVALID_SETTINGS');
+    assert.ok(!JSON.stringify(configFailure(error)).includes('synthetic-secret'));
+  }
+});
